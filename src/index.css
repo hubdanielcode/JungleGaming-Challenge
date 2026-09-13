@@ -1,0 +1,110 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@font-face {
+  font-family: "PT Mono";
+  src: url("/fonts/pt-mono.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "PT Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-display: "PT Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-background: #140d0a;
+  --color-surface: #241612;
+  --color-surface-2: #38220f;
+  --color-border: #3f2319;
+  --color-border-strong: #442c1a;
+
+  --color-foreground: #f5f1eb;
+  --color-muted: #cfb28c;
+  --color-muted-2: #8f765d;
+
+  --color-accent: #d08848;
+  --color-accent-strong: #e6a15f;
+  --color-accent-foreground: #1a1006;
+
+  --color-success: #7aab5c;
+  --color-danger: #c65b45;
+  --color-warning: #d08848;
+
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    min-width: 320px;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-strong);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* - O Tailwind não define cursor pointer para <button> por padrão (só <a href> ganha isso do navegador).
+   *   Sem esta regra, todo botão do app mostra a seta padrão em vez da mãozinha ao passar o mouse. - */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-surface-2);
+  }
+
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(240, 230, 208, 0.06), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer::after {
+      animation: none;
+    }
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
