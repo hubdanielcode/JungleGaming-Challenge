@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const searchParameters = useSearch({ from: "/login" });
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +23,9 @@ const LoginPage = () => {
     mutationFn: login,
     onSuccess: async (session) => {
       queryClient.setQueryData(queryKeys.session.current(), session);
-      await navigate({ to: "/" });
+      const redirectTarget = searchParameters.redirect;
+      const safeRedirect = redirectTarget && redirectTarget.startsWith("/") && !redirectTarget.startsWith("//") ? redirectTarget : "/";
+      await navigate({ to: safeRedirect as "/" });
     },
 
     onError: (error) => setFormError(error instanceof Error ? error.message : "Não foi possível entrar."),
@@ -128,6 +131,9 @@ const LoginPage = () => {
 };
 
 const Route = createFileRoute("/login")({
+  validateSearch: (searchParameters) => ({
+    redirect: typeof searchParameters.redirect === "string" ? searchParameters.redirect : undefined,
+  }),
   component: LoginPage,
 });
 

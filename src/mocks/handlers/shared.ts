@@ -15,7 +15,6 @@ const httpStatusByErrorCode = new Map<ApiErrorCode, number>([
   ["RATE_LIMITED", 429],
   ["TRANSIENT_FAILURE", 503],
   ["INTERNAL_ERROR", 500],
-  ["WALLET_CONNECTION_REJECTED", 409],
 ]);
 
 const createApiErrorBody = (errorCode: ApiErrorCode, errorMessage: string, fieldErrors?: ApiFieldError[]): ApiErrorBody => {

@@ -5,7 +5,7 @@
     "types": ["node", "@playwright/test"],
     "noUnusedLocals": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["../src/*"]
     }
   },
   "include": ["e2e", "visual"]

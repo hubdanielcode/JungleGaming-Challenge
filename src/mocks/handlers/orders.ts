@@ -122,11 +122,11 @@ const orderHandlers = [
 
       const requestUsesSameOrderData =
         existingOrder.walletId === createOrderInput.walletId &&
+        existingOrder.network === createOrderInput.network &&
+        existingOrder.walletProvider === createOrderInput.walletProvider &&
         existingOrder.collectorName === createOrderInput.collectorName &&
         existingOrder.collectorEmail === createOrderInput.collectorEmail &&
-        existingOrder.couponCode === createOrderInput.couponCode &&
-        existingOrder.network === createOrderInput.network &&
-        existingOrder.walletProvider === createOrderInput.walletProvider;
+        existingOrder.couponCode === createOrderInput.couponCode;
 
       if (!requestUsesSameOrderData) {
         return createApiErrorResponse("IDEMPOTENCY_CONFLICT", "Chave de idempotência já usada com outros dados.");
@@ -143,7 +143,11 @@ const orderHandlers = [
     }
 
     if (selectedWallet.network !== createOrderInput.network || selectedWallet.provider !== createOrderInput.walletProvider) {
-      return createApiErrorResponse("AVAILABILITY_CONFLICT", "A carteira, o provedor e a rede selecionados não correspondem. Reconecte a carteira.");
+      return createApiErrorResponse("AVAILABILITY_CONFLICT", "A carteira, provedor ou rede selecionados não correspondem entre si.");
+    }
+
+    if (selectedWallet.connectionStatus === "disconnected") {
+      return createApiErrorResponse("AVAILABILITY_CONFLICT", "A carteira está desconectada. Conecte-a novamente antes de confirmar.");
     }
 
     const cart = mockDatabase.getCart(storedSession.userId);

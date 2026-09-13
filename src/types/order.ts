@@ -35,11 +35,11 @@ export interface Order {
 export interface CreateOrderInput {
   idempotencyKey: string;
   walletId: string;
+  network: WalletNetwork;
+  walletProvider: WalletProvider;
   collectorName: string;
   collectorEmail: string;
   couponCode: string | null;
-  network: WalletNetwork;
-  walletProvider: WalletProvider;
 }
 
 export interface OrderUpdatedPayload {

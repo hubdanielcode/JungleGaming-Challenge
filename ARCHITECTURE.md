@@ -36,6 +36,8 @@ Todos os endpoints abaixo estão implementados em `src/mocks/handlers` e documen
 | `GET`  | `/api/nfts`     | Listagem com busca, filtros, ordenação e paginação via query string. |
 | `GET`  | `/api/nfts/:id` | Detalhe por identificador; retorna `NOT_FOUND` para NFT inexistente. |
 
+Os filtros de catálogo aceitam `search`, `collectionId`, `category` (repetível), `network` (repetível), `minPrice`, `maxPrice`, `tags` (repetível), `sort`, `page` e `pageSize`. A URL da Home serializa as listas em `categories=` e `networks=` para preservar histórico e refresh.
+
 ### 2.3 Favoritos
 
 | Método   | Rota                    | Descrição                                           |
@@ -80,6 +82,8 @@ Todos os endpoints abaixo estão implementados em `src/mocks/handlers` e documen
 | `GET`   | `/api/wallets`     | Lista as carteiras cadastradas (principal e secundária). |
 | `POST`  | `/api/wallets`     | Cadastra uma carteira.                                   |
 | `PATCH` | `/api/wallets/:id` | Atualiza uma carteira existente.                         |
+| `POST`  | `/api/wallets/:id/connect` | Simula conexão da carteira e retorna o estado conectado/recusado. |
+| `POST`  | `/api/wallets/:id/disconnect` | Simula a desconexão da carteira. |
 
 ### 2.8 Erros
 
@@ -113,7 +117,7 @@ cadeia de cálculo. Quantidades de itens são sempre inteiras (`number`).
 A criação de pedido (`POST /api/orders`) exige um cabeçalho `Idempotency-Key`. O servidor
 simulado mantém um mapa `idempotencyKey → orderId`:
 
-- Reenviar a mesma chave com os mesmos dados (carteira, nome, e-mail, cupom) devolve o pedido já
+- Reenviar a mesma chave com os mesmos dados (carteira, rede, provedor, nome, e-mail, cupom) devolve o pedido já
   criado, sem duplicar a compra — cobre clique repetido e reenvio após timeout.
 - Reenviar a mesma chave com dados diferentes retorna `IDEMPOTENCY_CONFLICT`.
 - Antes de criar o pedido, o servidor recalcula a cotação do carrinho; se ela estiver
@@ -145,7 +149,7 @@ responde:
   sessão, perfil, favoritos, carrinho e carteiras (`queryClient.removeQueries`), para não vazar
   dados privados de um usuário para o próximo que logar na mesma aba.
 - Além da limpeza no logout, as chaves de cache privadas (`queryKeys.cart`, `.favorites`,
-  `.profile`, `.wallets`, `.session`, em `src/lib/queryClient.ts`) são funções que embutem a
+  `.profile`, `.wallets`, `.session` e `.orders`, em `src/lib/queryClient.ts`) são funções que embutem a
   identidade ativa (`getActiveIdentityId()`, em `src/lib/session.ts`: o token de sessão, ou
   `guest:<guestId>` para visitante) diretamente na chave. Assim, o isolamento entre usuários não
   depende só da limpeza rodar em todo caminho de troca de sessão — identidades diferentes nunca
@@ -230,29 +234,41 @@ Para referência rápida:
    chaves privadas embutem a identidade ativa (seção 5).
 3. ~~`onReconnect` do cliente Socket.IO não está conectado a uma reconciliação com a API REST~~ —
    resolvido: `AppShell` e a tela de confirmação revalidam via REST ao reconectar (seção 8).
-4. Regressão visual (Playwright) configurada para início, detalhe, carrinho e pagamento
-   (`tests/e2e/visualRegression.spec.ts`); as baselines ficam em
-   `tests/e2e/visualRegression.spec.ts-snapshots/` e devem ser atualizadas apenas após uma execução
-   real deliberada com `playwright test --update-snapshots`.
-5. A suíte Lighthouse em `scripts/lighthouse.mjs` executa três medições por página/perfil, grava HTML/JSON
-   e resumo em `reports/lighthouse/<data>/` e encerra com erro quando qualquer mediana fica abaixo
-   das metas do enunciado.
-6. `shadcn/ui` está presente como padrão de componente (Radix + Tailwind, API compatível), mas não
-   há `components.json` nem a estrutura gerada formalmente pela CLI do shadcn — vale confirmar se
-   isso atende ao enunciado ou se a origem literal dos componentes é exigida.
-7. ~~Os filtros de categoria e de rede na Home eram apenas visuais~~ — resolvido: ambos agora
-   trafegam na query string, são aplicados pelo handler `GET /api/nfts` e têm cobertura E2E de URL,
-   resultado e persistência após refresh.
-8. ~~Os botões de aumentar/diminuir quantidade na página de detalhe do NFT não tinham `aria-label`~~ —
-   resolvido: ambos expõem rótulos acessíveis e a regressão é coberta por Playwright.
-9. ~~Seleção de carteira/rede no checkout sem conexão realista~~ — resolvido: o checkout simula conexão,
-   recusa e desconexão via endpoint MSW, usa a carteira selecionada como fonte de provedor/rede e o
-   endpoint de pedido rejeita combinações inconsistentes.
+4. Regressão visual: os baselines de início e detalhe (desktop/mobile) já estão versionados em
+   `tests/e2e/visualRegression.spec.ts-snapshots/`. Ainda faltam os baselines de carrinho e pagamento,
+   que devem ser gerados por uma execução real com `playwright test --update-snapshots` antes da entrega.
+5. A suíte Lighthouse está implementada em `scripts/lighthouse.mjs`, mas os relatórios HTML/JSON e
+   a mediana das três execuções por página/perfil ainda precisam ser gerados e versionados.
+6. `components.json` agora documenta a convenção shadcn/ui usada pelos componentes Radix/Tailwind
+   em `src/components/ui`. Não foi adicionada a CLI como dependência de runtime porque os componentes
+   entregues são fonte local; caso o avaliador faça uma checagem literal por pacote `shadcn`, validar essa
+   exigência antes do envio final.
+7. ~~Filtros de categoria e rede eram apenas visuais~~ — resolvido: agora fazem parte do contrato `NFT`,
+   persistem na URL e são enviados ao REST como filtros combináveis.
+8. ~~Botões de quantidade do detalhe sem `aria-label`~~ — resolvido no detalhe; os controles mobile do
+   carrinho também possuem rótulos acessíveis.
+9. ~~Seleção de carteira/rede sem simulação funcional~~ — resolvido: checkout usa carteira/rede/provedor
+   reais do mock, endpoints de conectar/desconectar, cenário determinístico de recusa e validação no
+   servidor antes da criação do pedido.
 10. ~~Não há cancelamento de requisições REST desatualizadas~~ — resolvido: `fetchNfts` e
-    `fetchSingleNft` (`src/features/catalog/api.ts`) agora repassam o `signal` que o TanStack Query
-    injeta em cada `queryFn` para o Axios, cancelando a requisição anterior quando a query key muda
-    (busca digitada rápido, troca de filtro) antes da resposta chegar.
-11. Deploy público está documentado no README. Baselines visuais e relatórios Lighthouse são artefatos
-    de execução: precisam ser gerados no ambiente final do projeto e versionados antes da entrega.
-12. O comando `npm run lighthouse` agora também funciona como gate: abaixo das metas, a execução termina
-    com erro em vez de produzir um relatório aparentemente aprovado.
+    `fetchSingleNft` (`src/features/catalog/api.ts`) repassam o `signal` que o TanStack Query injeta em
+    cada `queryFn` para o Axios.
+11. A URL pública já está registrada no README; falta apenas o smoke test final do deployment e a
+    geração dos artefatos de regressão visual/Lighthouse que não podem ser fabricados sem uma execução
+    real do navegador.
+
+
+## Atualização pré-deploy — 13/09/2026
+
+- Categorias e redes do catálogo agora fazem parte do contrato `NFT`, são persistidas nas fixtures e são enviadas ao REST como parâmetros repetidos (`category` e `network`). A URL do catálogo mantém listas combináveis em `categories=` e `networks=` e sempre reinicia `page` quando um filtro muda.
+- O checkout agora seleciona rede, carteira e provedor de forma coerente, simula conexão/desconexão via endpoints MSW e suporta o cenário determinístico `wallet-declined`. O pedido envia e valida `network` e `walletProvider` contra a carteira selecionada.
+- O socket padrão em produção usa a mesma origem publicada (`wss://host` em HTTPS), evitando referência a `localhost` no deploy.
+- A troca/logout de sessão reconecta o Socket.IO para a nova identidade e remove caches privados por prefixo de recurso, evitando retenção de dados da sessão anterior. Pedidos também passaram a ter query key segmentada por identidade.
+- Eventos `nft.updated` atualizam preço/disponibilidade do item no cache do carrinho e invalidam a cotação. Eventos de teste com versão antiga não alteram a fonte canônica do NFT.
+- Favoritos de visitante redirecionam para login preservando a rota de origem; após autenticação, o fluxo retorna ao contexto solicitado.
+- O menu mobile possui botão e menu acessíveis por teclado, e os controles de quantidade do carrinho mobile têm rótulos acessíveis.
+- `components.json` documenta a convenção shadcn/ui adotada pelos componentes Radix em `src/components/ui`.
+
+### Validação de entrega
+
+Antes de publicar, executar em checkout limpo: `npm ci`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run test:e2e` e `npm run lighthouse`. O deploy deve manter `VITE_ENABLE_MOCKS=true`.

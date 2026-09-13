@@ -20,11 +20,13 @@ const useClearPrivateCaches = () => {
   const queryClient = useQueryClient();
 
   const clearPrivateCaches = () => {
-    queryClient.removeQueries({ queryKey: queryKeys.session.current() });
-    queryClient.removeQueries({ queryKey: queryKeys.profile.current() });
-    queryClient.removeQueries({ queryKey: queryKeys.favorites.all() });
-    queryClient.removeQueries({ queryKey: queryKeys.cart.all() });
-    queryClient.removeQueries({ queryKey: queryKeys.wallets.all() });
+    /* - Remove por recurso, sem depender da identidade já ter mudado no localStorage. Isso evita que logout/expiração apaguem apenas o cache do visitante e deixem dados da sessão anterior vivos. - */
+    queryClient.removeQueries({ queryKey: ["session"] });
+    queryClient.removeQueries({ queryKey: ["profile"] });
+    queryClient.removeQueries({ queryKey: ["favorites"] });
+    queryClient.removeQueries({ queryKey: ["cart"] });
+    queryClient.removeQueries({ queryKey: ["wallets"] });
+    queryClient.removeQueries({ queryKey: ["orders"] });
   };
 
   return clearPrivateCaches;

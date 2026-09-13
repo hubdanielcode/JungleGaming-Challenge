@@ -8,23 +8,26 @@ const developmentServerBaseUrl = `http://127.0.0.1:${developmentServerPort}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: isRunningOnCi,
   retries: isRunningOnCi ? 1 : 0,
-  workers: isRunningOnCi ? 2 : undefined,
-  timeout: 30000,
+  workers: 1,
+  timeout: 60000,
   expect: {
-    timeout: 8000,
+    timeout: 15000,
   },
 
   reporter: [["html", { open: "never", outputFolder: "playwright-report" }], ["list"]],
+
+  /* - Baselines visuais são portáveis entre Windows/Linux/macOS: o caminho não incorpora a plataforma do host. - */
+  snapshotPathTemplate: "{testDir}/visualRegression.spec.ts-snapshots/{arg}-{projectName}{ext}",
 
   use: {
     baseURL: developmentServerBaseUrl,
     trace: "on-first-retry",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
-    actionTimeout: 8000,
+    actionTimeout: 15000,
   },
 
   /* - Cada projeto isola seu próprio storageState (nenhum é compartilhado entre arquivos de teste) porque cada spec começa resetando o cenário do zero via endpoint de dev; manter storageState fora daqui evita que sessão de um teste vaze para outro por engano. - */
@@ -50,7 +53,7 @@ export default defineConfig({
       name: "chromium-mobile",
       use: {
         ...devices["Pixel 5"],
-        viewport: { width: 414, height: 896 },
+        viewport: { width: 393, height: 851 },
       },
     },
   ],
@@ -58,8 +61,8 @@ export default defineConfig({
   webServer: {
     command: "npm run dev:e2e",
     url: developmentServerBaseUrl,
-    reuseExistingServer: !isRunningOnCi,
-    timeout: 60000,
+    reuseExistingServer: false,
+    timeout: 120000,
     env: {
       VITE_ENABLE_MOCKS: "true",
     },

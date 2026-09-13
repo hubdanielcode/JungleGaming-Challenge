@@ -86,53 +86,45 @@ const CartPage = () => {
         </div>
       ) : (
         <>
-          <div className="mt-6 grid gap-0 md:mt-8 lg:grid-cols-[minmax(0,780px)_330px] lg:justify-between lg:gap-0">
+          <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_330px] md:mt-8">
             <div className="min-w-0">
-              <div className="hidden md:block">
-                <table className="w-full table-fixed border-separate border-spacing-y-2 text-left">
+              <div className="hidden rounded-card bg-surface p-5 md:block">
+                <table className="w-full border-collapse text-left">
                   <caption className="sr-only">Itens no seu carrinho de NFTs</caption>
 
-                  <colgroup>
-                    <col className="w-[43%]" />
-                    <col className="w-[14%]" />
-                    <col className="w-[19%]" />
-                    <col className="w-[17%]" />
-                    <col className="w-[7%]" />
-                  </colgroup>
-
                   <thead>
-                    <tr className="text-xs uppercase tracking-wide text-muted">
+                    <tr className="border-b border-border-strong text-xs uppercase tracking-wide text-muted">
                       <th
                         scope="col"
-                        className="border-b border-border-strong pb-2 font-semibold"
+                        className="pb-3 font-semibold"
                       >
                         NFT
                       </th>
 
                       <th
                         scope="col"
-                        className="border-b border-border-strong pb-2 pr-4 font-semibold"
+                        className="pb-3 pr-4 font-semibold"
                       >
                         Preço
                       </th>
 
                       <th
                         scope="col"
-                        className="border-b border-border-strong pb-2 pr-4 font-semibold"
+                        className="pb-3 pr-4 font-semibold"
                       >
                         Quantidade
                       </th>
 
                       <th
                         scope="col"
-                        className="border-b border-border-strong pb-2 pr-4 font-semibold"
+                        className="pb-3 pr-4 font-semibold"
                       >
                         Total
                       </th>
 
                       <th
                         scope="col"
-                        className="border-b border-border-strong pb-2"
+                        className="pb-3"
                       >
                         <span className="sr-only">Remover</span>
                       </th>
@@ -154,11 +146,11 @@ const CartPage = () => {
                 </table>
               </div>
 
-              <div className="grid gap-5 md:hidden">
+              <div className="grid gap-2 md:hidden">
                 {cartItems.map((cartItem) => (
                   <article
                     key={cartItem.id}
-                    className="grid min-h-25 grid-cols-[100px_minmax(0,1fr)] overflow-hidden rounded-[12px] bg-surface"
+                    className="grid min-h-18 grid-cols-[62px_minmax(0,1fr)] overflow-hidden rounded-control bg-surface"
                   >
                     <Link
                       to="/nfts/$nftId"
@@ -168,11 +160,11 @@ const CartPage = () => {
                       <img
                         src={cartItem.nftImage}
                         alt={cartItem.nftName}
-                        className="h-full min-h-25 w-25 object-cover"
+                        className="h-full min-h-18 w-15.5 object-cover"
                       />
                     </Link>
 
-                    <div className="min-w-0 px-3 py-3">
+                    <div className="min-w-0 px-3 py-2.5">
                       <Link
                         to="/nfts/$nftId"
                         params={{ nftId: cartItem.nftId }}
@@ -185,13 +177,14 @@ const CartPage = () => {
                         Edição: {cartItem.editionCurrent}/{cartItem.editionTotal}
                       </p>
 
-                      <div className="mt-2 flex items-end justify-between gap-2">
+                      <div className="mt-1.5 flex items-end justify-between gap-2">
                         <span className="font-mono text-[14px] font-bold text-accent">{cartItem.unitPriceEth} ETH</span>
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             disabled={cartItem.quantity <= 1 || updateQuantityMutation.isPending}
                             onClick={() => updateQuantityMutation.mutate({ itemId: cartItem.id, quantity: cartItem.quantity - 1 })}
+                            aria-label={`Diminuir quantidade de ${cartItem.nftName}`}
                             className="grid size-6 place-items-center rounded-full border border-border bg-surface-2 text-[11px] text-accent"
                           >
                             −
@@ -203,6 +196,7 @@ const CartPage = () => {
                             type="button"
                             disabled={cartItem.quantity >= cartItem.maxQuantity || updateQuantityMutation.isPending}
                             onClick={() => updateQuantityMutation.mutate({ itemId: cartItem.id, quantity: cartItem.quantity + 1 })}
+                            aria-label={`Aumentar quantidade de ${cartItem.nftName}`}
                             className="grid size-6 place-items-center rounded-full border border-border bg-surface-2 text-[11px] text-accent"
                           >
                             +

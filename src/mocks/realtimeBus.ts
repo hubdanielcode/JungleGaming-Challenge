@@ -2,7 +2,7 @@ import type { RealtimeEvent } from "@/types";
 
 type RealtimeListener = (eventName: string, eventEnvelope: RealtimeEvent<unknown>) => void;
 
-let nextEventVersionNumber = 1;
+let nextEventVersionNumber = 2;
 
 const getNextEventVersion = () => {
   return nextEventVersionNumber++;

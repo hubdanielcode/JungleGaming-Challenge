@@ -52,6 +52,9 @@ test.describe("Atualizações em tempo real (Socket.IO)", () => {
 
     await expect(page.getByText("5.0000 ETH")).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("1.0000 ETH")).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByText("5.0000 ETH")).toBeVisible({ timeout: 5000 });
   });
 
   test("reconexão do socket com pedido pendente eventualmente resolve o status", async ({ page }) => {

@@ -6,7 +6,7 @@ export interface ScenarioConfig {
   offline: boolean;
   forceOrderTimeout: boolean;
   nextPaymentOutcome: "confirmed" | "declined" | null;
-  walletConnectionOutcome: "connected" | "rejected";
+  walletConnectionOutcome: "connected" | "declined";
 }
 
 const scenarioStorageKey = "kurio-scenarios";
@@ -44,8 +44,8 @@ const readScenarioFromUrl = (): Partial<ScenarioConfig> => {
     case "payment-declined":
       return { nextPaymentOutcome: "declined" };
 
-    case "wallet-rejected":
-      return { walletConnectionOutcome: "rejected" };
+    case "wallet-declined":
+      return { walletConnectionOutcome: "declined" };
 
     default:
       return {};

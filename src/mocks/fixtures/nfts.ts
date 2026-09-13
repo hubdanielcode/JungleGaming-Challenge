@@ -1,4 +1,4 @@
-import type { NFT, NFTCategory, NFTNetwork } from "@/types";
+import type { NFT } from "@/types";
 
 /* - Gerado por scripts/generateNftAvatars.ts: retrato geométrico de macaco com acessório variável,
  *   determinístico por seed. Optamos por isso em vez de um serviço externo de fotos aleatórias
@@ -41,8 +41,8 @@ const createNftFixture = (
     name,
     collection: collectionName,
     collectionId,
-    category: (["arte-digital", "fotografia", "musica", "arte-3d", "colecionaveis", "generativa", "jogos", "assinaturas", "utilidade"] as NFTCategory[])[id.charCodeAt(0) % 9],
-    network: (["ethereum", "polygon", "solana"] as NFTNetwork[])[id.charCodeAt(0) % 3],
+    category: "collectibles",
+    network: "ethereum",
     image: createNftImageUrl(id),
     gallery: [
       createNftImageUrl(id),
@@ -70,7 +70,7 @@ const createNftFixture = (
   };
 };
 
-/* - Fixtures cobrem preços, tags, edições, coleções, ordenação e paginação. - */
+/* - Fixtures cobrem preços, tags, edições, coleções, categorias, redes, ordenação e paginação. - */
 
 const nftFixtures: NFT[] = [
   createNftFixture("emerald-ape-042", "Emerald Ape #042", "kurio-apes", "Kurio Apes", "1.19", 1, 50, ["em-alta"], 4.8, 19),
@@ -110,5 +110,25 @@ const nftFixtures: NFT[] = [
   createNftFixture("sunset-signal-808", "Sunset Signal #808", "kurio-apes", "Kurio Apes", "0.49", 7, 50, [], 4.1, 4),
   createNftFixture("crimson-gem-909", "Crimson Gem #909", "kurio-editions", "Kurio Editions", "3.40", 1, 10, ["novo"], 4.5, 11),
 ];
+
+const fixtureCategories: NFT["category"][] = [
+  "digital-art",
+  "collectibles",
+  "generative",
+  "3d-art",
+  "photography",
+  "music",
+  "games",
+  "subscriptions",
+  "utility",
+];
+
+const fixtureNetworks: NFT["network"][] = ["ethereum", "polygon", "solana"];
+
+/* - A taxonomia do Figma precisa ser representada nos dados da API, e não apenas como estado visual. A distribuição determinística abaixo mantém variedade suficiente para filtros combinados sem depender de aleatoriedade. - */
+nftFixtures.forEach((nft, index) => {
+  nft.category = fixtureCategories[index % fixtureCategories.length];
+  nft.network = fixtureNetworks[index % fixtureNetworks.length];
+});
 
 export { nftFixtures };

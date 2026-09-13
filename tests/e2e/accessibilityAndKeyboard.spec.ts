@@ -4,12 +4,14 @@ import { resetMockedBackend } from "./support/testHelpers";
 /*
  * - Cobre o grupo "navegação por teclado e skeletons" (último grupo do enunciado, seção 11) e
  *   registra os achados reais de acessibilidade encontrados lendo o código (não suposições):
- *     1. Botões de quantidade no Detalhe do NFT têm aria-label.
- *     2. Botão "aplicar cupom" no Carrinho tem aria-label mesmo quando mostra só o ícone.
- *     3. Botão de favoritar do NftCard fica fora do link do card.
- *     4. O AppShell oferece um link "Pular para o conteúdo".
- *   Os pontos abaixo são mantidos como contratos executáveis para evitar regressões de teclado,
- *   semântica e leitores de tela. -
+ *     1. Botões de quantidade no Detalhe do NFT sem aria-label.
+ *     2. Botão "aplicar cupom" no Carrinho sem aria-label (só ícone Ticket).
+ *     3. Botão de favoritar do NftCard aninhado DENTRO de um <Link> (elemento interativo dentro de
+ *        elemento interativo — inválido em HTML e problemático para leitores de tela/teclado).
+ *     4. Ausência de um link "Pular para o conteúdo" no AppShell.
+ *   Os três primeiros têm testes que HOJE FALHAM DE PROPÓSITO (test.fail()) para servir de rede de
+ *   segurança: quando corrigidos, o Playwright avisa que o teste passou inesperadamente e é hora de
+ *   remover o test.fail(). -
  */
 
 test.describe("Acessibilidade e navegação por teclado", () => {

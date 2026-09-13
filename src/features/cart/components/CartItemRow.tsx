@@ -18,8 +18,8 @@ const CartItemRow = ({ cartItem, isUpdatingQuantity, onIncreaseQuantity, onDecre
   const lineTotalEth = decimal.multiplyByInteger(cartItem.unitPriceEth, cartItem.quantity);
 
   return (
-    <tr className="group">
-      <td className="rounded-l-[4px] bg-surface py-2.5 pl-2 pr-4">
+    <tr className="border-b border-border last:border-b-0">
+      <td className="py-4 pr-4">
         <div className="flex items-center gap-3">
           <img
             src={cartItem.nftImage}
@@ -45,9 +45,9 @@ const CartItemRow = ({ cartItem, isUpdatingQuantity, onIncreaseQuantity, onDecre
         </div>
       </td>
 
-      <td className="bg-surface py-2.5 pr-4 font-mono text-sm text-foreground">{cartItem.unitPriceEth} ETH</td>
+      <td className="py-4 pr-4 font-mono text-sm text-foreground">{cartItem.unitPriceEth} ETH</td>
 
-      <td className="bg-surface py-2.5 pr-4">
+      <td className="py-4 pr-4">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -79,9 +79,9 @@ const CartItemRow = ({ cartItem, isUpdatingQuantity, onIncreaseQuantity, onDecre
         </div>
       </td>
 
-      <td className="bg-surface py-2.5 pr-4 font-mono text-sm font-semibold text-accent">{decimal.format(lineTotalEth)} ETH</td>
+      <td className="py-4 pr-4 font-mono text-sm font-semibold text-accent">{decimal.format(lineTotalEth)} ETH</td>
 
-      <td className="rounded-r-[4px] bg-surface py-2.5 pr-2">
+      <td className="py-4">
         <button
           type="button"
           onClick={onRemove}

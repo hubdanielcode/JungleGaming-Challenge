@@ -1,5 +1,5 @@
 export type WalletKind = "primary" | "secondary";
-export type WalletNetwork = "ethereum" | "polygon" | "solana";
+export type WalletNetwork = "ethereum" | "polygon";
 export type WalletProvider = "walletconnect" | "metamask" | "coinbase";
 
 export interface User {
@@ -47,6 +47,7 @@ export interface Wallet {
   network: WalletNetwork;
   provider: WalletProvider;
   label: string;
+  connectionStatus?: "connected" | "disconnected";
 }
 
 export interface WalletInput {

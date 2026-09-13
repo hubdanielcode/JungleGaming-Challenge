@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const searchParameters = useSearch({ from: "/register" });
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -25,7 +26,9 @@ const RegisterPage = () => {
     mutationFn: register,
     onSuccess: async (session) => {
       queryClient.setQueryData(queryKeys.session.current(), session);
-      await navigate({ to: "/" });
+      const redirectTarget = searchParameters.redirect;
+      const safeRedirect = redirectTarget && redirectTarget.startsWith("/") && !redirectTarget.startsWith("//") ? redirectTarget : "/";
+      await navigate({ to: safeRedirect as "/" });
     },
 
     onError: (error) => setFormError(error instanceof Error ? error.message : "Não foi possível criar o perfil."),
@@ -160,6 +163,11 @@ const RegisterPage = () => {
   );
 };
 
-const Route = createFileRoute("/register")({ component: RegisterPage });
+const Route = createFileRoute("/register")({
+  validateSearch: (searchParameters) => ({
+    redirect: typeof searchParameters.redirect === "string" ? searchParameters.redirect : undefined,
+  }),
+  component: RegisterPage,
+});
 
 export { Route };

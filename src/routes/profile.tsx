@@ -125,19 +125,21 @@ const ProfilePage = () => {
   const save = (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    profileMutation.mutate();
 
     if (newPassword) {
       if (newPassword.length < 6) {
-        return setError("A nova senha deve ter ao menos 6 caracteres.");
+        setError("A nova senha deve ter ao menos 6 caracteres.");
+        return;
       }
 
       if (newPassword !== confirmPassword) {
-        return setError("As senhas não coincidem.");
+        setError("As senhas não coincidem.");
+        return;
       }
-
-      passwordMutation.mutate();
     }
+
+    profileMutation.mutate();
+    if (newPassword) passwordMutation.mutate();
   };
 
   return (
@@ -318,7 +320,7 @@ const ProfilePage = () => {
 
           {message && <p className="mt-4 text-xs text-success">{message}</p>}
 
-          {error && <p className="mt-4 text-xs text-danger">{error}</p>}
+          {error && <p role="alert" className="mt-4 text-xs text-danger">{error}</p>}
         </main>
       </div>
     </div>

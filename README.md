@@ -44,7 +44,7 @@ o que pode ser sobrescrito.
 | ------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `VITE_ENABLE_MOCKS` | `true`                | Liga/desliga o MSW (REST + Socket.IO simulado). Use `false` apenas se for apontar para um backend real, o que está fora do escopo deste desafio. |
 | `VITE_API_BASE_URL` | `/api`                | Base usada pelo cliente Axios (`src/lib/axios.ts`).                                                                                              |
-| `VITE_SOCKET_URL`   | `ws://localhost:5173` | Endpoint usado pelo cliente `socket.io-client`.                                                                                                  |
+| `VITE_SOCKET_URL`   | mesma origem (`ws://`/`wss://`) | Endpoint usado pelo cliente `socket.io-client`. Em produção, deixe vazio para usar a origem publicada automaticamente. |
 
 Para sobrescrever, crie um `.env.local` (ignorado pelo Git) ou exporte a variável na linha de
 comando, por exemplo:
@@ -66,7 +66,10 @@ VITE_ENABLE_MOCKS=false VITE_API_BASE_URL=https://minha-api.exemplo.com npm run 
 | `npm run test:e2e`        | Executa a suíte Playwright (Chromium, projetos desktop/tablet/mobile).                                                     |
 | `npm run test:e2e:ui`     | Abre o modo interativo do Playwright.                                                                                      |
 | `npm run test:e2e:report` | Abre o último relatório HTML gerado pelo Playwright.                                                                       |
-| `npm run lighthouse`      | Builda, sobe o preview e audita Início e Detalhe do NFT (mobile e desktop).                                                |
+| `npm run lighthouse
+
+Para gerar/atualizar as baselines visuais e fechar a conferência de release em uma única etapa, use `npm run release:verify`. Esse comando só deve ser executado após `npm ci` e gera os artefatos versionados em `reports/lighthouse/`.`      | Builda, sobe o preview e audita Início e Detalhe do NFT (mobile e desktop).                                                |
+| `npm run predeploy:check` | Bloqueia a entrega se faltarem snapshots visuais, relatórios Lighthouse, documentação ou scripts obrigatórios.            |
 | `npm run msw:init`        | Regenera o service worker do MSW em `public/` (necessário após clonar o repositório, caso o worker não esteja versionado). |
 
 ## Contas de demonstração
@@ -158,6 +161,8 @@ npm run test:e2e
 
 ```bash
 npm run lighthouse
+
+Para gerar/atualizar as baselines visuais e fechar a conferência de release em uma única etapa, use `npm run release:verify`. Esse comando só deve ser executado após `npm ci` e gera os artefatos versionados em `reports/lighthouse/`.
 ```
 
 - Builda a aplicação, sobe o preview otimizado (porta 4173) e audita **Início** e **Detalhe do

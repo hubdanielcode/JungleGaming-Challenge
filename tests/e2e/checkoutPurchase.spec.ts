@@ -38,8 +38,6 @@ test.describe("Checkout e compra", () => {
     await goToCheckoutWithOneItemInCart(page);
     await fillCheckoutCollectorForm(page);
 
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("status")).toContainText("conectado", { timeout: 10000 });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await page.waitForURL(/\/confirmation\//);
@@ -52,44 +50,16 @@ test.describe("Checkout e compra", () => {
     await goToCheckoutWithOneItemInCart(page);
     await fillCheckoutCollectorForm(page);
 
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("status")).toContainText("conectado", { timeout: 10000 });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await page.waitForURL(/\/confirmation\//);
     await expect(page.getByText("Pagamento recusado")).toBeVisible({ timeout: 10000 });
   });
 
-  test("rede sem carteira correspondente não pode ser confirmada", async ({ page }) => {
-    await goToCheckoutWithOneItemInCart(page);
-    await fillCheckoutCollectorForm(page);
-
-    await page.getByLabel("Rede").selectOption("polygon");
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("alert")).toContainText("Nenhuma carteira cadastrada");
-
-    await page.getByRole("button", { name: "Confirmar compra" }).click();
-    await expect(page.getByRole("alert")).toContainText("Conecte a carteira");
-  });
-
-  test("recusa da carteira impede a confirmação e expõe estado de erro", async ({ page }) => {
-    await applyScenarioPatch(page, { walletConnectionOutcome: "rejected" });
-    await goToCheckoutWithOneItemInCart(page);
-    await fillCheckoutCollectorForm(page);
-
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("alert")).toContainText("recusada");
-
-    await expect(page.getByRole("button", { name: "Confirmar compra" })).toBeVisible();
-  });
-
   test("clique duplo no botão de confirmar não cria dois pedidos", async ({ page }) => {
     await applyScenarioPatch(page, { nextPaymentOutcome: "confirmed" });
     await goToCheckoutWithOneItemInCart(page);
     await fillCheckoutCollectorForm(page);
-
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("status")).toContainText("conectado", { timeout: 10000 });
 
     const submitButton = page.getByRole("button", { name: /confirmar compra|processando/i });
 
@@ -110,8 +80,6 @@ test.describe("Checkout e compra", () => {
     await goToCheckoutWithOneItemInCart(page);
     await fillCheckoutCollectorForm(page);
 
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("status")).toContainText("conectado", { timeout: 10000 });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await page.waitForURL(/\/confirmation\//);
     await expect(page.getByText("Pagamento em processamento")).toBeVisible();
@@ -121,8 +89,6 @@ test.describe("Checkout e compra", () => {
     await page.getByRole("button", { name: "Tentar novamente" }).click();
     await page.waitForURL("/checkout");
     await fillCheckoutCollectorForm(page);
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("status")).toContainText("conectado", { timeout: 10000 });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await page.waitForURL(/\/confirmation\//);
 
@@ -167,10 +133,28 @@ test.describe("Checkout e compra", () => {
       );
     }
 
-    await page.getByRole("button", { name: "Conectar carteira" }).click();
-    await expect(page.getByRole("status")).toContainText("conectado", { timeout: 10000 });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
 
     await expect(page.getByRole("alert")).toContainText(/cotação mudou|atualize o resumo/i);
   });
+  test("rede sem carteira correspondente impede a confirmação", async ({ page }) => {
+    await goToCheckoutWithOneItemInCart(page);
+    await page.getByLabel("Rede de pagamento").first().selectOption("polygon");
+    await expect(page.getByText("Nenhuma carteira cadastrada para esta rede.")).toBeVisible();
+    await page.getByRole("button", { name: "Confirmar compra" }).click();
+    await expect(page.getByRole("alert")).toContainText(/carteira|rede/i);
+  });
+
+  test("recusa de conexão da carteira bloqueia a compra e permite recuperar", async ({ page }) => {
+    await applyScenarioPatch(page, { walletConnectionOutcome: "declined" });
+    await goToCheckoutWithOneItemInCart(page);
+    await page.getByRole("button", { name: "Desconectar carteira" }).click();
+    await page.getByRole("button", { name: "Conectar carteira" }).click();
+    await expect(page.getByRole("alert")).toContainText(/recusada/i);
+
+    await applyScenarioPatch(page, { walletConnectionOutcome: "connected" });
+    await page.getByRole("button", { name: "Conectar carteira" }).click();
+    await expect(page.getByText("Conectada")).toBeVisible();
+  });
+
 });

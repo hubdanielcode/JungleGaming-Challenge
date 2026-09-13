@@ -14,13 +14,9 @@ const fetchNfts = async (nftFilters: NFTFilters, signal?: AbortSignal): Promise<
     searchParameters.set("collectionId", nftFilters.collectionId);
   }
 
-  if (nftFilters.category) {
-    searchParameters.set("category", nftFilters.category);
-  }
+  nftFilters.categories?.forEach((category) => searchParameters.append("category", category));
 
-  if (nftFilters.network) {
-    searchParameters.set("network", nftFilters.network);
-  }
+  nftFilters.networks?.forEach((network) => searchParameters.append("network", network));
 
   if (nftFilters.minPrice) {
     searchParameters.set("minPrice", nftFilters.minPrice);

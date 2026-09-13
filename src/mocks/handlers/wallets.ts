@@ -1,8 +1,8 @@
 import { http, HttpResponse } from "msw";
-import type { Wallet, WalletInput, WalletNetwork, WalletProvider } from "@/types";
+import type { Wallet, WalletInput } from "@/types";
 import { mockDatabase } from "../db";
-import { getScenarioConfig } from "../scenarios";
 import { applyNetworkConditions, createApiErrorResponse, getSessionFromRequest } from "./shared";
+import { getScenarioConfig } from "../scenarios";
 
 const walletHandlers = [
   http.get("/api/wallets", async ({ request }) => {
@@ -19,32 +19,6 @@ const walletHandlers = [
     });
   }),
 
-  http.post("/api/wallets/connect", async ({ request }) => {
-    await applyNetworkConditions();
-
-    const storedSession = getSessionFromRequest(request);
-
-    if (!storedSession) {
-      return createApiErrorResponse("UNAUTHENTICATED", "Faça login para conectar uma carteira.");
-    }
-
-    const walletInput = (await request.json()) as { provider: WalletProvider; network: WalletNetwork };
-    const scenarioConfig = getScenarioConfig();
-
-    if (scenarioConfig.walletConnectionOutcome === "rejected") {
-      return createApiErrorResponse("WALLET_CONNECTION_REJECTED", "A conexão da carteira foi recusada pelo provedor.");
-    }
-
-    const userWallets = mockDatabase.state.walletsByUser[storedSession.userId] ?? [];
-    const connectedWallet = userWallets.find((wallet) => wallet.provider === walletInput.provider && wallet.network === walletInput.network);
-
-    if (!connectedWallet) {
-      return createApiErrorResponse("VALIDATION_ERROR", "Nenhuma carteira cadastrada corresponde ao provedor e à rede selecionados.");
-    }
-
-    return HttpResponse.json(connectedWallet);
-  }),
-
   http.post("/api/wallets", async ({ request }) => {
     await applyNetworkConditions();
 
@@ -56,7 +30,7 @@ const walletHandlers = [
 
     const walletInput = (await request.json()) as WalletInput;
 
-    if (!walletInput.address || walletInput.address.length < 6) {
+    if (!walletInput.address || !/^0x[0-9a-fA-F]{8,64}$/.test(walletInput.address)) {
       return createApiErrorResponse("VALIDATION_ERROR", "Endereço de carteira inválido.", [
         { field: "address", message: "Endereço de carteira inválido." },
       ]);
@@ -78,6 +52,7 @@ const walletHandlers = [
       network: walletInput.network,
       provider: walletInput.provider,
       label: walletInput.label ?? (walletInput.kind === "primary" ? "Principal" : "Secundária"),
+      connectionStatus: "connected",
     };
 
     userWallets.push(newWallet);
@@ -103,7 +78,7 @@ const walletHandlers = [
       return createApiErrorResponse("NOT_FOUND", "Carteira não encontrada.");
     }
 
-    if (walletInput.address && walletInput.address.length < 6) {
+    if (walletInput.address && !/^0x[0-9a-fA-F]{8,64}$/.test(walletInput.address)) {
       return createApiErrorResponse("VALIDATION_ERROR", "Endereço de carteira inválido.", [
         { field: "address", message: "Endereço de carteira inválido." },
       ]);
@@ -114,6 +89,50 @@ const walletHandlers = [
 
     return HttpResponse.json(walletToUpdate);
   }),
+  http.post("/api/wallets/:id/connect", async ({ request, params }) => {
+    await applyNetworkConditions();
+
+    const storedSession = getSessionFromRequest(request);
+    if (!storedSession) {
+      return createApiErrorResponse("UNAUTHENTICATED", "Faça login para conectar a carteira.");
+    }
+
+    const userWallets = mockDatabase.state.walletsByUser[storedSession.userId] ?? [];
+    const wallet = userWallets.find((currentWallet) => currentWallet.id === params.id);
+    if (!wallet) {
+      return createApiErrorResponse("NOT_FOUND", "Carteira não encontrada.");
+    }
+
+    if (getScenarioConfig().walletConnectionOutcome === "declined") {
+      wallet.connectionStatus = "disconnected";
+      mockDatabase.persist();
+      return createApiErrorResponse("AVAILABILITY_CONFLICT", "A conexão da carteira foi recusada pela simulação.");
+    }
+
+    wallet.connectionStatus = "connected";
+    mockDatabase.persist();
+    return HttpResponse.json(wallet);
+  }),
+
+  http.post("/api/wallets/:id/disconnect", async ({ request, params }) => {
+    await applyNetworkConditions();
+
+    const storedSession = getSessionFromRequest(request);
+    if (!storedSession) {
+      return createApiErrorResponse("UNAUTHENTICATED", "Faça login para desconectar a carteira.");
+    }
+
+    const userWallets = mockDatabase.state.walletsByUser[storedSession.userId] ?? [];
+    const wallet = userWallets.find((currentWallet) => currentWallet.id === params.id);
+    if (!wallet) {
+      return createApiErrorResponse("NOT_FOUND", "Carteira não encontrada.");
+    }
+
+    wallet.connectionStatus = "disconnected";
+    mockDatabase.persist();
+    return HttpResponse.json(wallet);
+  }),
+
 ];
 
 export { walletHandlers };

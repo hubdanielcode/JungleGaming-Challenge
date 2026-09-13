@@ -39,6 +39,11 @@ const NftDetailPage = () => {
   const favMutation = useMutation({
     mutationFn: () => (favorites.data?.includes(nftId) ? removeFavoriteNft(nftId) : addFavoriteNft(nftId)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.favorites.all() }),
+    onError: (error) => {
+      if (error instanceof Error && /login|autentic|sessão/i.test(error.message)) {
+        void navigate({ to: "/login", search: { redirect: `/nfts/${nftId}` } });
+      }
+    },
   });
 
   const cartMutation = useMutation({
@@ -68,7 +73,7 @@ const NftDetailPage = () => {
           to="/"
           className="mt-4 inline-block text-accent"
         >
-          Voltar ao mercado
+          Voltar para o catálogo
         </Link>
       </div>
     );
@@ -76,14 +81,6 @@ const NftDetailPage = () => {
 
   const nft = nftQuery.data;
   const favorite = favorites.data?.includes(nft.id) ?? false;
-  const toggleFavorite = () => {
-    if (!getSessionToken()) {
-      void navigate({ to: "/login" });
-      return;
-    }
-
-    favMutation.mutate();
-  };
   const max = Math.max(1, Math.min(nft.availableQuantity, nft.maxQuantityPerOrder));
   const related = (collectionQuery.data?.items ?? []).filter((x) => x.id !== nft.id).slice(0, 5);
 
@@ -95,7 +92,14 @@ const NftDetailPage = () => {
           backTo="/"
           showFavorite
           favoriteActive={favorite}
-          onToggleFavorite={toggleFavorite}
+          onToggleFavorite={() => {
+            if (!getSessionToken()) {
+              void navigate({ to: "/login", search: { redirect: `/nfts/${nftId}` } });
+              return;
+            }
+
+            favMutation.mutate();
+          }}
         />
 
         <div className="px-6 md:px-0">
@@ -151,8 +155,14 @@ const NftDetailPage = () => {
 
                 <button
                   type="button"
-                  onClick={toggleFavorite}
-                  aria-label={favorite ? `Remover ${nft.name} dos favoritos` : `Adicionar ${nft.name} aos favoritos`}
+                  onClick={() => {
+                    if (!getSessionToken()) {
+                      void navigate({ to: "/login", search: { redirect: `/nfts/${nftId}` } });
+                      return;
+                    }
+                    favMutation.mutate();
+                  }}
+                  aria-label={favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                   className="hidden size-8 place-items-center rounded-control border border-accent text-accent md:grid"
                 >
                   <Heart
@@ -215,7 +225,14 @@ const NftDetailPage = () => {
 
                   <button
                     type="button"
-                    onClick={toggleFavorite}
+                    onClick={() => {
+                      if (!getSessionToken()) {
+                        void navigate({ to: "/login", search: { redirect: `/nfts/${nftId}` } });
+                        return;
+                      }
+                      favMutation.mutate();
+                    }}
+                    aria-label={favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                     className="hidden h-9 rounded-control border border-accent px-4 text-[10px] md:block"
                   >
                     <Heart

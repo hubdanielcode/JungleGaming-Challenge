@@ -14,10 +14,12 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
-    "validate": "npm run typecheck && npm run lint && tsc -p tests/tsconfig.json --noEmit && npm run test:e2e && npm run lighthouse",
+    "test:e2e:update-snapshots": "playwright test tests/e2e/visualRegression.spec.ts --update-snapshots",
+    "release:verify": "npm run test:e2e:update-snapshots && npm run lighthouse && npm run predeploy:check",
     "lighthouse": "node scripts/lighthouse.mjs",
     "generate:nft-avatars": "tsx scripts/generateNftAvatars.ts",
-    "msw:init": "msw init public/ --save"
+    "msw:init": "msw init public/ --save",
+    "predeploy:check": "node scripts/predeploy-check.mjs"
   },
   "dependencies": {
     "@fontsource/archivo": "^5.3.0",

@@ -9,7 +9,7 @@ import { getRealtimeSessionId, getActiveIdentityId } from "@/lib/session";
 import { clearPendingOrder, getPendingOrder, setPendingOrder } from "@/lib/pendingOrder";
 import { Button } from "@/components/ui/Button";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
-import type { Order } from "@/types";
+import { ApiError, type Order } from "@/types";
 
 type OrderUpdatedPayload = {
   orderId: string;
@@ -66,10 +66,15 @@ const ConfirmationPage = () => {
   const orderStatus = orderQuery.data?.status;
 
   useEffect(() => {
+    if (orderQuery.error instanceof ApiError && orderQuery.error.status === 401) {
+      void navigate({ to: "/login", search: { redirect: `/confirmation/${orderId}` } });
+      return;
+    }
+
     if (orderStatus === "confirmed" || orderStatus === "declined") {
       clearPendingOrder(getActiveIdentityId());
     }
-  }, [orderStatus]);
+  }, [clearPendingOrder, navigate, orderId, orderQuery.error, orderStatus]);
 
   if (orderQuery.isLoading) {
     return (

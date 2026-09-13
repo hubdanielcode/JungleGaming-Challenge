@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";
@@ -22,8 +22,8 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 interface HomeSearchParameters {
   search?: string;
   collectionId?: string;
-  category?: NFTCategory;
-  network?: NFTNetwork;
+  categories?: string;
+  networks?: string;
   minPrice?: string;
   maxPrice?: string;
   sort?: NFTSortOption;
@@ -40,31 +40,24 @@ interface HomeSearchParameters {
 const CATALOG_MINIMUM_PRICE_IN_ETH = 0.02;
 const CATALOG_MAXIMUM_PRICE_IN_ETH = 12.3;
 
-/* - As categorias e redes visuais do Figma agora têm correspondência nos fixtures e são enviadas à API mockada via query string, preservando a aparência da sidebar sem deixar filtros inertes. - */
+/* - Categorias e redes são dimensões reais do contrato REST. A URL usa listas separadas por vírgula para permitir múltiplas seleções, preservar refresh/histórico e manter o filtro combinável com coleção e preço. - */
 
-interface CatalogSidebarCollectionItem {
-  label: string;
-  count: number;
-  category: NFTCategory;
-  collectionId?: string;
-}
-
-const catalogSidebarCollections: CatalogSidebarCollectionItem[] = [
-  { label: "Arte digital", count: 33, category: "arte-digital", collectionId: "kurio-editions" },
-  { label: "Fotografia", count: 12, category: "fotografia" },
-  { label: "Música", count: 65, category: "musica" },
-  { label: "Arte 3D", count: 39, category: "arte-3d" },
-  { label: "Colecionáveis", count: 23, category: "colecionaveis", collectionId: "kurio-apes" },
-  { label: "Generativa", count: 17, category: "generativa" },
-  { label: "Jogos", count: 19, category: "jogos" },
-  { label: "Assinaturas", count: 13, category: "assinaturas" },
-  { label: "Utilidade", count: 18, category: "utilidade" },
+const catalogSidebarCollections: Array<{ label: string; count: number; category: NFTCategory; collectionId?: string }> = [
+  { label: "Arte digital", count: 33, category: "digital-art", collectionId: "kurio-editions" },
+  { label: "Fotografia", count: 12, category: "photography" },
+  { label: "Música", count: 65, category: "music" },
+  { label: "Arte 3D", count: 39, category: "3d-art" },
+  { label: "Colecionáveis", count: 23, category: "collectibles", collectionId: "kurio-apes" },
+  { label: "Generativa", count: 17, category: "generative" },
+  { label: "Jogos", count: 19, category: "games" },
+  { label: "Assinaturas", count: 13, category: "subscriptions" },
+  { label: "Utilidade", count: 18, category: "utility" },
 ];
 
-const catalogSidebarNetworks: Array<{ label: string; value: NFTNetwork; count: number }> = [
-  { label: "Ethereum", value: "ethereum", count: 119 },
-  { label: "Polygon", value: "polygon", count: 78 },
-  { label: "Solana", value: "solana", count: 86 },
+const catalogSidebarNetworks: Array<{ label: string; count: number; network: NFTNetwork }> = [
+  { label: "Ethereum", count: 119, network: "ethereum" },
+  { label: "Polygon", count: 78, network: "polygon" },
+  { label: "Solana", count: 86, network: "solana" },
 ];
 
 const catalogPromoBanners = [
@@ -136,6 +129,7 @@ const HomePage = () => {
     Number(searchParameters.maxPrice ?? CATALOG_MAXIMUM_PRICE_IN_ETH),
   ]);
 
+
   /* - Reajusta o campo de busca quando o parâmetro da URL muda por fora (navegação pelo histórico, limpar filtros etc.), sem depender de um efeito. O valor anterior do parâmetro é comparado DURANTE A PRÓPRIA RENDERIZAÇÃO, seguindo o padrão recomendado para "ajustar estado quando uma prop muda". - */
 
   const [lastSyncedSearchParameter, setLastSyncedSearchParameter] = useState(searchParameters.search);
@@ -144,12 +138,19 @@ const HomePage = () => {
     setSearchInput(searchParameters.search ?? "");
   }
 
+  useEffect(() => {
+    setPriceRangeDraft([
+      Number(searchParameters.minPrice ?? CATALOG_MINIMUM_PRICE_IN_ETH),
+      Number(searchParameters.maxPrice ?? CATALOG_MAXIMUM_PRICE_IN_ETH),
+    ]);
+  }, [searchParameters.maxPrice, searchParameters.minPrice]);
+
   const nftFilters = useMemo<NFTFilters>(
     () => ({
       search: searchParameters.search,
       collectionId: searchParameters.collectionId,
-      category: searchParameters.category,
-      network: searchParameters.network,
+      categories: searchParameters.categories?.split(",").filter(Boolean) as NFTCategory[] | undefined,
+      networks: searchParameters.networks?.split(",").filter(Boolean) as NFTNetwork[] | undefined,
       minPrice: searchParameters.minPrice,
       maxPrice: searchParameters.maxPrice,
       tags: searchParameters.highlight ? [searchParameters.highlight] : undefined,
@@ -159,12 +160,12 @@ const HomePage = () => {
     }),
 
     [
-      searchParameters.category,
+      searchParameters.categories,
       searchParameters.collectionId,
       searchParameters.highlight,
-      searchParameters.network,
       searchParameters.maxPrice,
       searchParameters.minPrice,
+      searchParameters.networks,
       searchParameters.page,
       searchParameters.search,
       searchParameters.sort,
@@ -245,21 +246,30 @@ const HomePage = () => {
     updateSearch({ search: searchInput.trim() || undefined });
   };
 
-  const handleToggleSidebarCategory = (categoryItem: CatalogSidebarCollectionItem) => {
-    if (categoryItem.collectionId) {
-      updateSearch({
-        category: undefined,
-        collectionId: searchParameters.collectionId === categoryItem.collectionId ? undefined : categoryItem.collectionId,
-      });
+  const toggleListSearchParameter = (parameterName: "categories" | "networks", value: string) => {
+    const currentValues = (searchParameters[parameterName]?.split(",").filter(Boolean) ?? []) as string[];
+    const nextValues = currentValues.includes(value) ? currentValues.filter((currentValue) => currentValue !== value) : [...currentValues, value];
 
-      return;
-    }
-
-    updateSearch({ category: searchParameters.category === categoryItem.category ? undefined : categoryItem.category, collectionId: undefined });
+    updateSearch({ [parameterName]: nextValues.length ? nextValues.join(",") : undefined });
   };
 
-  const handleToggleSidebarNetwork = (networkValue: NFTNetwork) => {
-    updateSearch({ network: searchParameters.network === networkValue ? undefined : networkValue });
+  const handleToggleSidebarCategory = (categoryItem: { category: NFTCategory; collectionId?: string }) => {
+    const activeCategories = searchParameters.categories?.split(",").filter(Boolean) ?? [];
+    const isActive = activeCategories.includes(categoryItem.category);
+    const nextCategories = isActive ? activeCategories.filter((value) => value !== categoryItem.category) : [...activeCategories, categoryItem.category];
+
+    updateSearch({
+      categories: nextCategories.length ? nextCategories.join(",") : undefined,
+      collectionId: categoryItem.collectionId
+        ? isActive
+          ? undefined
+          : categoryItem.collectionId
+        : searchParameters.collectionId,
+    });
+  };
+
+  const handleToggleSidebarNetwork = (networkItem: { network: NFTNetwork }) => {
+    toggleListSearchParameter("networks", networkItem.network);
   };
 
   const handleApplyPriceRange = () => {
@@ -283,9 +293,8 @@ const HomePage = () => {
 
         <ul className="mt-4 grid gap-3">
           {catalogSidebarCollections.map((categoryItem) => {
-            const isChecked = categoryItem.collectionId
-              ? searchParameters.collectionId === categoryItem.collectionId
-              : searchParameters.category === categoryItem.category;
+            const activeCategories = searchParameters.categories?.split(",").filter(Boolean) ?? [];
+            const isChecked = activeCategories.includes(categoryItem.category) || Boolean(categoryItem.collectionId && searchParameters.collectionId === categoryItem.collectionId);
 
             return (
               <li key={categoryItem.label}>
@@ -346,12 +355,12 @@ const HomePage = () => {
                 <span className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={searchParameters.network === networkItem.value}
-                    onChange={() => handleToggleSidebarNetwork(networkItem.value)}
+                    checked={(searchParameters.networks?.split(",").filter(Boolean) ?? []).includes(networkItem.network)}
+                    onChange={() => handleToggleSidebarNetwork(networkItem)}
                     className="size-4 accent-accent"
                   />
 
-                  <span className={searchParameters.network === networkItem.value ? "text-accent" : undefined}>{networkItem.label}</span>
+                  <span className={(searchParameters.networks?.split(",").filter(Boolean) ?? []).includes(networkItem.network) ? "text-accent" : undefined}>{networkItem.label}</span>
                 </span>
 
                 <span className="text-xs text-muted-2">({networkItem.count})</span>
@@ -576,14 +585,14 @@ const HomePage = () => {
                   isFavoritePending={favoriteMutation.isPending}
                   onToggleFavorite={(nftId) => {
                     if (!getSessionToken()) {
-                      void navigate({ to: "/login" });
+                      void navigate({ to: "/login", search: { redirect: `${window.location.pathname}${window.location.search}` } });
                       return;
                     }
                     favoriteMutation.mutate(nftId);
                   }}
                   onAddToCart={(nftId) => {
                     if (!getSessionToken()) {
-                      void navigate({ to: "/login" });
+                      void navigate({ to: "/login", search: { redirect: `${window.location.pathname}${window.location.search}` } });
                       return;
                     }
                     cartMutation.mutate(nftId);
@@ -596,7 +605,7 @@ const HomePage = () => {
           {nftListQuery.data && searchParameters.favorites !== "true" && nftListQuery.data.totalPages > 1 ? (
             <nav
               aria-label="Paginação do catálogo"
-              className="mt-7 flex items-center justify-end gap-1.5"
+              className="mt-7 flex items-center justify-end gap-2"
             >
               {Array.from({ length: nftListQuery.data.totalPages }, (_, pageIndex) => pageIndex + 1).map((pageNumber) => (
                 <button
@@ -604,7 +613,7 @@ const HomePage = () => {
                   type="button"
                   aria-current={nftListQuery.data.page === pageNumber ? "page" : undefined}
                   onClick={() => updateSearch({ page: pageNumber })}
-                  className={`grid size-7 place-items-center rounded-[3px] border border-border text-[10px] font-normal leading-none transition-colors ${
+                  className={`grid size-8 place-items-center rounded-[3px] border border-border text-[11px] font-normal transition-colors ${
                     nftListQuery.data.page === pageNumber
                       ? "bg-accent text-accent-foreground border-accent"
                       : "bg-transparent text-muted hover:text-foreground"
@@ -618,7 +627,7 @@ const HomePage = () => {
                 aria-label="Próxima página"
                 disabled={nftListQuery.data.page >= nftListQuery.data.totalPages}
                 onClick={() => updateSearch({ page: Math.min(nftListQuery.data.totalPages, nftListQuery.data.page + 1) })}
-                className="grid size-7 place-items-center rounded-[3px] border border-border text-[11px] leading-none text-muted transition-colors enabled:hover:text-foreground disabled:opacity-40"
+                className="grid size-8 place-items-center rounded-[3px] border border-border text-[12px] text-muted transition-colors enabled:hover:text-foreground disabled:opacity-40"
               >
                 ›
               </button>
@@ -708,8 +717,8 @@ const Route = createFileRoute("/")({
   validateSearch: (searchParameters): HomeSearchParameters => ({
     search: typeof searchParameters.search === "string" ? searchParameters.search : undefined,
     collectionId: typeof searchParameters.collectionId === "string" ? searchParameters.collectionId : undefined,
-    category: typeof searchParameters.category === "string" ? (searchParameters.category as NFTCategory) : undefined,
-    network: typeof searchParameters.network === "string" ? (searchParameters.network as NFTNetwork) : undefined,
+    categories: typeof searchParameters.categories === "string" ? searchParameters.categories : undefined,
+    networks: typeof searchParameters.networks === "string" ? searchParameters.networks : undefined,
     minPrice: typeof searchParameters.minPrice === "string" ? searchParameters.minPrice : undefined,
     maxPrice: typeof searchParameters.maxPrice === "string" ? searchParameters.maxPrice : undefined,
     sort: typeof searchParameters.sort === "string" ? (searchParameters.sort as NFTSortOption) : undefined,

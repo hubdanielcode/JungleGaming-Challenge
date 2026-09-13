@@ -38,7 +38,7 @@ const createInitialDatabaseState = (): MockDatabaseState => ({
   cartsByOwner: {},
   walletsByUser: {
     "user-andreza": [
-      { id: "wallet-andreza-primary", kind: "primary", address: "0xA491F_E82C", network: "ethereum", provider: "metamask", label: "Principal" },
+      { id: "wallet-andreza-primary", kind: "primary", address: "0xA491F_E82C", network: "ethereum", provider: "metamask", label: "Principal", connectionStatus: "connected" },
     ],
   },
   ordersById: {},

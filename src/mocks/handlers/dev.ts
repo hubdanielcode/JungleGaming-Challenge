@@ -49,21 +49,19 @@ const devHandlers = [
     }
 
     const eventVersion = input.eventVersion ?? getNextEventVersion();
+    const eventPriceEth = input.priceEth ?? currentNft.priceEth;
+    const eventAvailableQuantity = input.soldOut === true
+      ? 0
+      : input.availableQuantity ?? currentNft.availableQuantity;
 
-    if (input.priceEth !== undefined) {
-      currentNft.priceEth = input.priceEth;
-    }
-
-    if (input.availableQuantity !== undefined) {
-      currentNft.availableQuantity = input.availableQuantity;
-    }
-
-    if (input.soldOut !== undefined) {
-      currentNft.edition.status = input.soldOut ? "sold_out" : "available";
-      currentNft.availableQuantity = input.soldOut ? 0 : Math.max(1, currentNft.availableQuantity);
-    }
-
-    if (input.eventVersion === undefined) {
+    /* - Eventos antigos/duplicados são payloads de teste; nunca alteram a fonte canônica. Só uma nova versão pode persistir a mudança. - */
+    if (eventVersion > currentNft.version) {
+      if (input.priceEth !== undefined) currentNft.priceEth = input.priceEth;
+      if (input.availableQuantity !== undefined) currentNft.availableQuantity = input.availableQuantity;
+      if (input.soldOut !== undefined) {
+        currentNft.edition.status = input.soldOut ? "sold_out" : "available";
+        currentNft.availableQuantity = input.soldOut ? 0 : Math.max(1, currentNft.availableQuantity);
+      }
       currentNft.version = eventVersion;
       mockDatabase.persist();
     }
@@ -74,8 +72,8 @@ const devHandlers = [
       currentNft.id,
       {
         nftId: currentNft.id,
-        priceEth: currentNft.priceEth,
-        availableQuantity: currentNft.availableQuantity,
+        priceEth: eventPriceEth,
+        availableQuantity: eventAvailableQuantity,
       },
       eventVersion,
     );

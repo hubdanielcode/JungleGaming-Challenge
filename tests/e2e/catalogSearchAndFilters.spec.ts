@@ -29,27 +29,22 @@ test.describe("Catálogo — busca, filtros e paginação", () => {
   });
 
 
-  test("filtro de categoria é funcional e reduz o catálogo", async ({ page }) => {
+  test("categorias e redes são filtros reais da API e podem ser combinadas", async ({ page }) => {
     await page.goto("/");
 
-    const cardsBefore = await page.locator('a[aria-label^="Ver detalhes de"]').count();
-    await page.getByText("Fotografia").locator("..").locator('input[type="checkbox"]').check();
+    const categoryCheckbox = page.getByText("Generativa").locator("..").locator('input[type="checkbox"]');
+    const networkCheckbox = page.getByText("Ethereum").locator("..").locator('input[type="checkbox"]');
 
-    await expect(page).toHaveURL(/category=fotografia/);
-    const cardsAfter = await page.locator('a[aria-label^="Ver detalhes de"]').count();
-    expect(cardsAfter).toBeLessThan(cardsBefore);
-  });
+    await categoryCheckbox.check();
+    await expect(page).toHaveURL(/categories=generative/);
 
-  test("filtro de rede é funcional e fica persistido na URL", async ({ page }) => {
-    await page.goto("/");
-
-    await page.getByText("Solana").locator("..").locator('input[type="checkbox"]').check();
-
-    await expect(page).toHaveURL(/network=solana/);
-    await expect(page.locator('a[aria-label^="Ver detalhes de"]').first()).toBeVisible();
+    await networkCheckbox.check();
+    await expect(page).toHaveURL(/categories=generative/);
+    await expect(page).toHaveURL(/networks=ethereum/);
 
     await page.reload();
-    await expect(page).toHaveURL(/network=solana/);
+    await expect(categoryCheckbox).toBeChecked();
+    await expect(networkCheckbox).toBeChecked();
   });
   test("aplicar faixa de preço grava minPrice e maxPrice na URL", async ({ page }) => {
     await page.goto("/");

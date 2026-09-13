@@ -27,18 +27,16 @@ const CartSummary = ({
   onRemoveCoupon,
   onGoToCheckout,
 }: CartSummaryProps) => (
-  <aside className="-mx-6 h-fit rounded-[34px] bg-surface p-6 md:mx-0 md:rounded-none md:bg-transparent md:p-0 lg:sticky lg:top-24">
+  <aside className="h-fit rounded-[26px] bg-surface p-4 md:rounded-none md:bg-transparent md:p-0 lg:sticky lg:top-24">
     <h2 className="hidden font-display text-xl font-bold md:block">Resumo da carteira</h2>
 
-    <div className="mt-6 hidden text-xs font-semibold md:block">Código promocional</div>
-
-    <div className="mt-5 flex gap-2 md:mt-2">
+    <div className="flex gap-2">
       <Input
         value={couponInput}
         onChange={(event) => onCouponInputChange(event.target.value)}
         placeholder="Digite o código promocional..."
         aria-label="Código promocional"
-        className="h-12 rounded-full bg-background font-mono text-[10px] placeholder:text-muted md:h-10 md:rounded-[3px]"
+        className="h-11 rounded-full bg-background font-mono text-[10px] placeholder:text-muted"
       />
 
       <Button
@@ -46,7 +44,7 @@ const CartSummary = ({
         aria-label="Aplicar cupom"
         disabled={!couponInput || isCouponPending}
         onClick={onApplyCoupon}
-        className="h-12 rounded-full px-5 font-mono text-[11px] md:h-10 md:rounded-[3px]"
+        className="h-11 rounded-full px-5 font-mono text-[11px]"
       >
         <span className="hidden md:inline">Aplicar</span>
 
@@ -72,7 +70,7 @@ const CartSummary = ({
 
     {hasCouponError ? <p className="mt-2 text-xs text-danger">Cupom inválido ou expirado.</p> : null}
 
-    <div className="mt-5 grid gap-3 text-[12px] md:mt-6 md:gap-3 md:border-t md:border-border md:pt-5 md:text-sm">
+    <div className="mt-4 grid gap-2 text-[12px] md:mt-6 md:gap-3 md:border-t md:border-border md:pt-5 md:text-sm">
       <div className="flex justify-between">
         <span className="text-muted">Subtotal</span>
 
@@ -101,7 +99,7 @@ const CartSummary = ({
     </div>
 
     <Button
-      className="mt-6 h-12 w-full rounded-full font-mono text-[12px] md:mt-5 md:h-10 md:rounded-[3px]"
+      className="mt-5 h-12 w-full rounded-full font-mono text-[12px] md:h-11"
       onClick={onGoToCheckout}
     >
       Conectar e finalizar
@@ -109,7 +107,7 @@ const CartSummary = ({
 
     <Link
       to="/"
-      className="mt-3 hidden w-full text-center text-sm text-accent md:block"
+      className="mt-4 hidden w-full text-center text-sm text-accent md:block"
     >
       Continuar explorando
     </Link>

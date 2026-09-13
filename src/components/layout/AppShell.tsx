@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerSessionExpiredHandler } from "@/lib/axios";
 import { queryKeys } from "@/lib/queryClient";
-import { getGuestId, getSessionToken, setSessionToken } from "@/lib/session";
+import { getActiveIdentityId, getSessionToken, setSessionToken } from "@/lib/session";
 import { realtimeClient } from "@/lib/socket";
 import { useClearPrivateCaches, useLogout, useSessionQuery } from "@/features/authentication/hooks";
 import { useCartQuery } from "@/features/cart/hooks";
 import { Button } from "@/components/ui/Button";
 import { AppFooter } from "@/components/layout/AppFooter";
+import type { Cart, NFTUpdatedPayload } from "@/types";
 
 interface PrimaryNavigationItem {
   label: string;
@@ -29,6 +30,7 @@ const AppShell = () => {
   const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sessionToken = getSessionToken();
+  const activeIdentityId = getActiveIdentityId();
   const sessionQuery = useSessionQuery();
   const cartQuery = useCartQuery();
   const clearPrivateCaches = useClearPrivateCaches();
@@ -38,30 +40,52 @@ const AppShell = () => {
     registerSessionExpiredHandler(() => {
       setSessionToken(null);
       clearPrivateCaches();
-      void navigate({ to: "/login" });
+      void navigate({ to: "/login", search: { redirect: `${window.location.pathname}${window.location.search}` } });
     });
   }, [clearPrivateCaches, navigate]);
 
   useEffect(() => {
-    const realtimeSessionId = getSessionToken() ?? getGuestId();
+    const realtimeSessionId = activeIdentityId;
     realtimeClient.connect(realtimeSessionId);
 
-    const removeNftListener = realtimeClient.onResourceEvent("nft.updated", () => {
+    const removeNftListener = realtimeClient.onResourceEvent<NFTUpdatedPayload>("nft.updated", (eventEnvelope) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nfts.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cart.all() });
+      queryClient.setQueryData<Cart | undefined>(queryKeys.cart.all(), (currentCart) => {
+        if (!currentCart) return currentCart;
+
+        return {
+          ...currentCart,
+          items: currentCart.items.map((item) =>
+            item.nftId === eventEnvelope.resourceId
+              ? {
+                  ...item,
+                  unitPriceEth: eventEnvelope.payload.priceEth ?? item.unitPriceEth,
+                  available: eventEnvelope.payload.availableQuantity === undefined
+                    ? item.available
+                    : eventEnvelope.payload.availableQuantity >= item.quantity,
+                  maxQuantity: eventEnvelope.payload.availableQuantity === undefined
+                    ? item.maxQuantity
+                    : Math.min(10, eventEnvelope.payload.availableQuantity),
+                }
+              : item,
+          ),
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart.quoteAll() });
     });
 
     const removeReconnectListener = realtimeClient.onReconnect(() => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nfts.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.cart.all() });
-      void queryClient.invalidateQueries({ queryKey: ["orders", "detail"] });
+      void queryClient.invalidateQueries({ queryKey: ["orders"] });
     });
 
     return () => {
       removeNftListener();
       removeReconnectListener();
     };
-  }, [queryClient]);
+  }, [activeIdentityId, queryClient]);
 
   useEffect(() => {
     if (!sessionQuery.data && sessionToken && sessionQuery.isFetched) {
@@ -86,6 +110,39 @@ const AppShell = () => {
       >
         Pular para o conteúdo
       </a>
+
+      <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur md:hidden">
+        <div className="flex h-14 items-center justify-between px-5">
+          <Link to="/" className="font-display text-lg font-bold tracking-[0.2em]" aria-label="KURIO">KURIO</Link>
+          <button
+            type="button"
+            aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-primary-menu"
+            onClick={() => setIsMobileMenuOpen((currentState) => !currentState)}
+            className="grid size-9 place-items-center rounded-control border border-border"
+          >
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+        {isMobileMenuOpen ? (
+          <nav id="mobile-primary-menu" aria-label="Menu principal" className="border-t border-border bg-surface px-4 py-3">
+            <div className="grid gap-1">
+              {primaryNavigationItems.map((navigationItem) => (
+                <a key={navigationItem.label} href={navigationItem.href} className="rounded-control p-3 hover:bg-surface-2" onClick={() => setIsMobileMenuOpen(false)}>
+                  {navigationItem.label}
+                </a>
+              ))}
+              <Link to="/profile" className="rounded-control p-3 hover:bg-surface-2" onClick={() => setIsMobileMenuOpen(false)}>Perfil</Link>
+              {authenticatedUser ? (
+                <button type="button" className="rounded-control p-3 text-left hover:bg-surface-2" onClick={() => void handleLogout()}>Sair</button>
+              ) : (
+                <Link to="/login" className="rounded-control p-3 hover:bg-surface-2" onClick={() => setIsMobileMenuOpen(false)}>Entrar</Link>
+              )}
+            </div>
+          </nav>
+        ) : null}
+      </header>
 
       <header className="sticky top-0 z-30 hidden border-b border-border bg-background/95 backdrop-blur md:block">
         <div className="mx-auto flex h-16 max-w-300 items-center gap-8 px-4 md:px-6">
@@ -134,7 +191,7 @@ const AppShell = () => {
             >
               <ShoppingCart size={17} />
 
-              <span className="absolute right-0 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[8px] font-bold leading-none text-accent-foreground">
+              <span className="absolute right-0 top-0.5 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground">
                 {cartItemCount}
               </span>
             </Link>
@@ -156,65 +213,10 @@ const AppShell = () => {
                 Entrar
               </Link>
             )}
-            <button
-              type="button"
-              className="grid size-9 place-items-center rounded-control border border-border md:hidden"
-              onClick={() => setIsMobileMenuOpen((currentState) => !currentState)}
-              aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
-              aria-expanded={isMobileMenuOpen}
-              aria-controls="mobile-navigation"
-            >
-              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
+
           </div>
         </div>
 
-        {isMobileMenuOpen ? (
-          <div id="mobile-navigation" className="border-t border-border bg-surface px-4 py-4 md:hidden">
-            <div className="grid gap-2 text-sm">
-              {primaryNavigationItems.map((navigationItem) => (
-                <a
-                  key={navigationItem.label}
-                  href={navigationItem.href}
-                  className="rounded-control p-3 hover:bg-surface-2"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {navigationItem.label}
-                </a>
-              ))}
-
-              <Link
-                to="/profile"
-                className="rounded-control p-3 hover:bg-surface-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <UserRound
-                  className="mr-2 inline"
-                  size={15}
-                />
-                Perfil
-              </Link>
-
-              {authenticatedUser ? (
-                <button
-                  type="button"
-                  className="rounded-control p-3 text-left hover:bg-surface-2"
-                  onClick={() => void handleLogout()}
-                >
-                  Sair
-                </button>
-              ) : (
-                <Link
-                  to="/login"
-                  className="rounded-control p-3 hover:bg-surface-2"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Entrar
-                </Link>
-              )}
-            </div>
-          </div>
-        ) : null}
       </header>
 
       <main

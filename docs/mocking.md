@@ -53,3 +53,10 @@ chega ao cliente. Isso evita simular tempo real diretamente no estado da interfa
 | `KURIO10` | 10% de desconto. |
 | `BEMVINDO` | 0,05 ETH de desconto fixo. |
 | `EXPIROU5` | Expirado. |
+
+## Carteira no checkout
+
+O checkout usa os endpoints mockados `POST /api/wallets/:id/connect` e
+`POST /api/wallets/:id/disconnect`. O cenário `wallet-declined` faz a conexão retornar conflito de
+simulação; o estado conectado/desconectado fica persistido no mock e a compra só pode ser criada
+quando a carteira, provedor e rede selecionados forem coerentes e a carteira estiver conectada.

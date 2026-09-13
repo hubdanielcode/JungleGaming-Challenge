@@ -217,8 +217,6 @@ const WalletsPage = () => {
               <option value="ethereum">Ethereum</option>
 
               <option value="polygon">Polygon</option>
-
-              <option value="solana">Solana</option>
             </SelectField>
 
             <SelectField
@@ -312,7 +310,7 @@ const WalletsPage = () => {
             </div>
 
             <div className="md:col-span-2">
-              {error && <p role="alert" className="text-xs text-danger">{error}</p>}
+              {error && <p className="text-xs text-danger">{error}</p>}
 
               <Button
                 type="submit"

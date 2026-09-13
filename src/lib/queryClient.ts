@@ -54,7 +54,7 @@ const queryKeys = {
   },
 
   orders: {
-    detail: (orderId: string) => ["orders", "detail", orderId] as const,
+    detail: (orderId: string) => ["orders", getActiveIdentityId(), "detail", orderId] as const,
   },
 } as const;
 
