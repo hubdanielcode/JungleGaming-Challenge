@@ -1,5 +1,5 @@
 export type WalletKind = "primary" | "secondary";
-export type WalletNetwork = "ethereum" | "polygon";
+export type WalletNetwork = "ethereum" | "polygon" | "solana";
 export type WalletProvider = "walletconnect" | "metamask" | "coinbase";
 
 export interface User {

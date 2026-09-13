@@ -38,6 +38,8 @@ export interface CreateOrderInput {
   collectorName: string;
   collectorEmail: string;
   couponCode: string | null;
+  network: WalletNetwork;
+  walletProvider: WalletProvider;
 }
 
 export interface OrderUpdatedPayload {

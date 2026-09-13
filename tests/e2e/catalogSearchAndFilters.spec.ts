@@ -28,6 +28,29 @@ test.describe("Catálogo — busca, filtros e paginação", () => {
     await expect(page).not.toHaveURL(/page=2/);
   });
 
+
+  test("filtro de categoria é funcional e reduz o catálogo", async ({ page }) => {
+    await page.goto("/");
+
+    const cardsBefore = await page.locator('a[aria-label^="Ver detalhes de"]').count();
+    await page.getByText("Fotografia").locator("..").locator('input[type="checkbox"]').check();
+
+    await expect(page).toHaveURL(/category=fotografia/);
+    const cardsAfter = await page.locator('a[aria-label^="Ver detalhes de"]').count();
+    expect(cardsAfter).toBeLessThan(cardsBefore);
+  });
+
+  test("filtro de rede é funcional e fica persistido na URL", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByText("Solana").locator("..").locator('input[type="checkbox"]').check();
+
+    await expect(page).toHaveURL(/network=solana/);
+    await expect(page.locator('a[aria-label^="Ver detalhes de"]').first()).toBeVisible();
+
+    await page.reload();
+    await expect(page).toHaveURL(/network=solana/);
+  });
   test("aplicar faixa de preço grava minPrice e maxPrice na URL", async ({ page }) => {
     await page.goto("/");
 

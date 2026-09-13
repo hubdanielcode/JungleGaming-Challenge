@@ -269,10 +269,23 @@ const runLighthouseAuditSuite = async () => {
     writeFileSync(resolve(auditReportsDirectoryPath, "resumo.md"), markdownSummaryReportContent, "utf-8");
     writeFileSync(resolve(auditReportsDirectoryPath, "resumo.json"), JSON.stringify(auditSummariesByPageAndProfile, null, 2), "utf-8");
 
+    const failedAuditSummaries = auditSummariesByPageAndProfile.filter((auditSummary) =>
+      auditSummary.performanceScoreMedian < evaluationCategoryTargets.performance ||
+      auditSummary.accessibilityScoreMedian < evaluationCategoryTargets.accessibility ||
+      auditSummary.bestPracticesScoreMedian < evaluationCategoryTargets.bestPractices ||
+      auditSummary.seoScoreMedian < evaluationCategoryTargets.seo,
+    );
+
     console.log("");
     console.log(markdownSummaryReportContent);
     console.log("");
     console.log(`Relatórios completos salvos em ${auditReportsDirectoryPath}`);
+
+    if (failedAuditSummaries.length > 0) {
+      throw new Error(
+        `A auditoria Lighthouse não atingiu todas as metas exigidas em ${failedAuditSummaries.length} combinação(ões) de página/perfil. Consulte reports/lighthouse para os detalhes.`,
+      );
+    }
   } finally {
     chromeInstance.kill();
     previewServerProcess.kill();

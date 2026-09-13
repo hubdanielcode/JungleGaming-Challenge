@@ -1,6 +1,17 @@
 export type DecimalString = string;
 
 export type NFTSortOption = "relevance" | "price_asc" | "price_desc" | "recent" | "rating_desc";
+export type NFTCategory =
+  | "arte-digital"
+  | "fotografia"
+  | "musica"
+  | "arte-3d"
+  | "colecionaveis"
+  | "generativa"
+  | "jogos"
+  | "assinaturas"
+  | "utilidade";
+export type NFTNetwork = "ethereum" | "polygon" | "solana";
 
 export interface NFTAttribute {
   trait: string;
@@ -19,6 +30,8 @@ export interface NFT {
   name: string;
   collection: string;
   collectionId: string;
+  category: NFTCategory;
+  network: NFTNetwork;
   image: string;
   gallery: string[];
   description: string;
@@ -43,6 +56,8 @@ export interface NFT {
 export interface NFTFilters {
   search?: string;
   collectionId?: string;
+  category?: NFTCategory;
+  network?: NFTNetwork;
   minPrice?: string;
   maxPrice?: string;
   tags?: NFT["tags"];

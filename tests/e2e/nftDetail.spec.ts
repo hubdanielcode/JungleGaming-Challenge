@@ -80,7 +80,7 @@ test.describe("Detalhe do NFT", () => {
     expect(observedMaximumQuantity).toBeLessThan(2 + safetyClickCap);
   });
 
-  test("BUG CONHECIDO — favoritar como visitante falha em silêncio no Detalhe (a Home redireciona, o Detalhe não)", async ({ page }) => {
+  test("favoritar como visitante redireciona para login de forma consistente com a Home", async ({ page }) => {
     await page.goto("/");
     const firstCardLink = await getFirstNftCardLink(page);
     await firstCardLink.click();
@@ -88,8 +88,6 @@ test.describe("Detalhe do NFT", () => {
     const favoriteButton = page.locator('button[aria-label="Adicionar aos favoritos"]');
     await favoriteButton.click();
 
-    await page.waitForTimeout(500);
-    await expect(page).toHaveURL(/\/nfts\//);
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/login/);
   });
 });

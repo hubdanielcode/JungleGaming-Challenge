@@ -9,7 +9,8 @@ export type ApiErrorCode =
   | "IDEMPOTENCY_CONFLICT"
   | "RATE_LIMITED"
   | "TRANSIENT_FAILURE"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "WALLET_CONNECTION_REJECTED";
 
 export interface Paginated<TItem> {
   items: TItem[];

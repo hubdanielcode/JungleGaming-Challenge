@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";
-import type { NFT, NFTFilters, NFTSortOption } from "@/types";
+import type { NFT, NFTCategory, NFTFilters, NFTNetwork, NFTSortOption } from "@/types";
 import { fetchNfts, fetchSingleNft } from "@/features/catalog/api";
 import { addCartItem } from "@/features/cart/api";
 import { addFavoriteNft, fetchFavoriteNftIds, removeFavoriteNft } from "@/features/favorites/api";
@@ -22,6 +22,8 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 interface HomeSearchParameters {
   search?: string;
   collectionId?: string;
+  category?: NFTCategory;
+  network?: NFTNetwork;
   minPrice?: string;
   maxPrice?: string;
   sort?: NFTSortOption;
@@ -38,30 +40,31 @@ interface HomeSearchParameters {
 const CATALOG_MINIMUM_PRICE_IN_ETH = 0.02;
 const CATALOG_MAXIMUM_PRICE_IN_ETH = 12.3;
 
-/* - O Figma desenha uma taxonomia de categorias e de redes mais ampla do que o catálogo mockado modela hoje (duas coleções: Kurio Apes e Kurio Editions, sem dimensão de rede por NFT). Nesta fase (fidelidade visual) reproduzi a composição exatamente como desenhada, mas apenas os itens marcados com "collectionId" filtram o catálogo de verdade; os demais mantêm apenas o estado de marcação local. - */
+/* - As categorias e redes visuais do Figma agora têm correspondência nos fixtures e são enviadas à API mockada via query string, preservando a aparência da sidebar sem deixar filtros inertes. - */
 
 interface CatalogSidebarCollectionItem {
   label: string;
   count: number;
+  category: NFTCategory;
   collectionId?: string;
 }
 
 const catalogSidebarCollections: CatalogSidebarCollectionItem[] = [
-  { label: "Arte digital", count: 33, collectionId: "kurio-editions" },
-  { label: "Fotografia", count: 12 },
-  { label: "Música", count: 65 },
-  { label: "Arte 3D", count: 39 },
-  { label: "Colecionáveis", count: 23, collectionId: "kurio-apes" },
-  { label: "Generativa", count: 17 },
-  { label: "Jogos", count: 19 },
-  { label: "Assinaturas", count: 13 },
-  { label: "Utilidade", count: 18 },
+  { label: "Arte digital", count: 33, category: "arte-digital", collectionId: "kurio-editions" },
+  { label: "Fotografia", count: 12, category: "fotografia" },
+  { label: "Música", count: 65, category: "musica" },
+  { label: "Arte 3D", count: 39, category: "arte-3d" },
+  { label: "Colecionáveis", count: 23, category: "colecionaveis", collectionId: "kurio-apes" },
+  { label: "Generativa", count: 17, category: "generativa" },
+  { label: "Jogos", count: 19, category: "jogos" },
+  { label: "Assinaturas", count: 13, category: "assinaturas" },
+  { label: "Utilidade", count: 18, category: "utilidade" },
 ];
 
-const catalogSidebarNetworks = [
-  { label: "Ethereum", count: 119 },
-  { label: "Polygon", count: 78 },
-  { label: "Solana", count: 86 },
+const catalogSidebarNetworks: Array<{ label: string; value: NFTNetwork; count: number }> = [
+  { label: "Ethereum", value: "ethereum", count: 119 },
+  { label: "Polygon", value: "polygon", count: 78 },
+  { label: "Solana", value: "solana", count: 86 },
 ];
 
 const catalogPromoBanners = [
@@ -133,11 +136,6 @@ const HomePage = () => {
     Number(searchParameters.maxPrice ?? CATALOG_MAXIMUM_PRICE_IN_ETH),
   ]);
 
-  /* - Marcações puramente visuais das categorias que ainda não têm correspondência real no catálogo mockado (ver comentário acima). - */
-
-  const [unwiredCategoryLabels, setUnwiredCategoryLabels] = useState<string[]>([]);
-  const [unwiredNetworkLabels, setUnwiredNetworkLabels] = useState<string[]>([]);
-
   /* - Reajusta o campo de busca quando o parâmetro da URL muda por fora (navegação pelo histórico, limpar filtros etc.), sem depender de um efeito. O valor anterior do parâmetro é comparado DURANTE A PRÓPRIA RENDERIZAÇÃO, seguindo o padrão recomendado para "ajustar estado quando uma prop muda". - */
 
   const [lastSyncedSearchParameter, setLastSyncedSearchParameter] = useState(searchParameters.search);
@@ -150,6 +148,8 @@ const HomePage = () => {
     () => ({
       search: searchParameters.search,
       collectionId: searchParameters.collectionId,
+      category: searchParameters.category,
+      network: searchParameters.network,
       minPrice: searchParameters.minPrice,
       maxPrice: searchParameters.maxPrice,
       tags: searchParameters.highlight ? [searchParameters.highlight] : undefined,
@@ -159,8 +159,10 @@ const HomePage = () => {
     }),
 
     [
+      searchParameters.category,
       searchParameters.collectionId,
       searchParameters.highlight,
+      searchParameters.network,
       searchParameters.maxPrice,
       searchParameters.minPrice,
       searchParameters.page,
@@ -245,22 +247,19 @@ const HomePage = () => {
 
   const handleToggleSidebarCategory = (categoryItem: CatalogSidebarCollectionItem) => {
     if (categoryItem.collectionId) {
-      updateSearch({ collectionId: searchParameters.collectionId === categoryItem.collectionId ? undefined : categoryItem.collectionId });
+      updateSearch({
+        category: undefined,
+        collectionId: searchParameters.collectionId === categoryItem.collectionId ? undefined : categoryItem.collectionId,
+      });
 
       return;
     }
 
-    setUnwiredCategoryLabels((currentLabels) =>
-      currentLabels.includes(categoryItem.label)
-        ? currentLabels.filter((label) => label !== categoryItem.label)
-        : [...currentLabels, categoryItem.label],
-    );
+    updateSearch({ category: searchParameters.category === categoryItem.category ? undefined : categoryItem.category, collectionId: undefined });
   };
 
-  const handleToggleSidebarNetwork = (networkLabel: string) => {
-    setUnwiredNetworkLabels((currentLabels) =>
-      currentLabels.includes(networkLabel) ? currentLabels.filter((label) => label !== networkLabel) : [...currentLabels, networkLabel],
-    );
+  const handleToggleSidebarNetwork = (networkValue: NFTNetwork) => {
+    updateSearch({ network: searchParameters.network === networkValue ? undefined : networkValue });
   };
 
   const handleApplyPriceRange = () => {
@@ -286,7 +285,7 @@ const HomePage = () => {
           {catalogSidebarCollections.map((categoryItem) => {
             const isChecked = categoryItem.collectionId
               ? searchParameters.collectionId === categoryItem.collectionId
-              : unwiredCategoryLabels.includes(categoryItem.label);
+              : searchParameters.category === categoryItem.category;
 
             return (
               <li key={categoryItem.label}>
@@ -347,12 +346,12 @@ const HomePage = () => {
                 <span className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={unwiredNetworkLabels.includes(networkItem.label)}
-                    onChange={() => handleToggleSidebarNetwork(networkItem.label)}
+                    checked={searchParameters.network === networkItem.value}
+                    onChange={() => handleToggleSidebarNetwork(networkItem.value)}
                     className="size-4 accent-accent"
                   />
 
-                  <span className={unwiredNetworkLabels.includes(networkItem.label) ? "text-accent" : undefined}>{networkItem.label}</span>
+                  <span className={searchParameters.network === networkItem.value ? "text-accent" : undefined}>{networkItem.label}</span>
                 </span>
 
                 <span className="text-xs text-muted-2">({networkItem.count})</span>
@@ -597,7 +596,7 @@ const HomePage = () => {
           {nftListQuery.data && searchParameters.favorites !== "true" && nftListQuery.data.totalPages > 1 ? (
             <nav
               aria-label="Paginação do catálogo"
-              className="mt-7 flex items-center justify-end gap-2"
+              className="mt-7 flex items-center justify-end gap-1.5"
             >
               {Array.from({ length: nftListQuery.data.totalPages }, (_, pageIndex) => pageIndex + 1).map((pageNumber) => (
                 <button
@@ -605,7 +604,7 @@ const HomePage = () => {
                   type="button"
                   aria-current={nftListQuery.data.page === pageNumber ? "page" : undefined}
                   onClick={() => updateSearch({ page: pageNumber })}
-                  className={`grid size-8 place-items-center rounded-[3px] border border-border text-[11px] font-normal transition-colors ${
+                  className={`grid size-7 place-items-center rounded-[3px] border border-border text-[10px] font-normal leading-none transition-colors ${
                     nftListQuery.data.page === pageNumber
                       ? "bg-accent text-accent-foreground border-accent"
                       : "bg-transparent text-muted hover:text-foreground"
@@ -619,7 +618,7 @@ const HomePage = () => {
                 aria-label="Próxima página"
                 disabled={nftListQuery.data.page >= nftListQuery.data.totalPages}
                 onClick={() => updateSearch({ page: Math.min(nftListQuery.data.totalPages, nftListQuery.data.page + 1) })}
-                className="grid size-8 place-items-center rounded-[3px] border border-border text-[12px] text-muted transition-colors enabled:hover:text-foreground disabled:opacity-40"
+                className="grid size-7 place-items-center rounded-[3px] border border-border text-[11px] leading-none text-muted transition-colors enabled:hover:text-foreground disabled:opacity-40"
               >
                 ›
               </button>
@@ -709,6 +708,8 @@ const Route = createFileRoute("/")({
   validateSearch: (searchParameters): HomeSearchParameters => ({
     search: typeof searchParameters.search === "string" ? searchParameters.search : undefined,
     collectionId: typeof searchParameters.collectionId === "string" ? searchParameters.collectionId : undefined,
+    category: typeof searchParameters.category === "string" ? (searchParameters.category as NFTCategory) : undefined,
+    network: typeof searchParameters.network === "string" ? (searchParameters.network as NFTNetwork) : undefined,
     minPrice: typeof searchParameters.minPrice === "string" ? searchParameters.minPrice : undefined,
     maxPrice: typeof searchParameters.maxPrice === "string" ? searchParameters.maxPrice : undefined,
     sort: typeof searchParameters.sort === "string" ? (searchParameters.sort as NFTSortOption) : undefined,

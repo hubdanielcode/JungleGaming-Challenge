@@ -124,7 +124,9 @@ const orderHandlers = [
         existingOrder.walletId === createOrderInput.walletId &&
         existingOrder.collectorName === createOrderInput.collectorName &&
         existingOrder.collectorEmail === createOrderInput.collectorEmail &&
-        existingOrder.couponCode === createOrderInput.couponCode;
+        existingOrder.couponCode === createOrderInput.couponCode &&
+        existingOrder.network === createOrderInput.network &&
+        existingOrder.walletProvider === createOrderInput.walletProvider;
 
       if (!requestUsesSameOrderData) {
         return createApiErrorResponse("IDEMPOTENCY_CONFLICT", "Chave de idempotência já usada com outros dados.");
@@ -138,6 +140,10 @@ const orderHandlers = [
 
     if (!selectedWallet) {
       return createApiErrorResponse("VALIDATION_ERROR", "Carteira selecionada é inválida.");
+    }
+
+    if (selectedWallet.network !== createOrderInput.network || selectedWallet.provider !== createOrderInput.walletProvider) {
+      return createApiErrorResponse("AVAILABILITY_CONFLICT", "A carteira, o provedor e a rede selecionados não correspondem. Reconecte a carteira.");
     }
 
     const cart = mockDatabase.getCart(storedSession.userId);

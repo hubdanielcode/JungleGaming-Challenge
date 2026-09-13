@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 const knownTestUsers = {
   primary: {
@@ -32,6 +32,7 @@ interface ScenarioConfigPatch {
   offline?: boolean;
   forceOrderTimeout?: boolean;
   nextPaymentOutcome?: "confirmed" | "declined" | null;
+  walletConnectionOutcome?: "connected" | "rejected";
 }
 
 interface SimulateNftUpdateInput {
@@ -61,21 +62,20 @@ const resetMockedBackend = async (page: Page) => {
   expect(responseStatus).toBe(200);
 };
 
-const applyScenarioPatch = async (page: Page, scenarioPatch: ScenarioConfigPatch) => {
-  const responseStatus = await page.evaluate(async (patch) => {
-    const response = await fetch("/api/dev/scenario", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+const applyScenarioPatch = async (requestContext: Page | APIRequestContext, scenarioPatch: ScenarioConfigPatch) => {
+  const response = "evaluate" in requestContext
+    ? await requestContext.evaluate(async (patch) => {
+        const scenarioResponse = await fetch("/api/dev/scenario", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
 
-      body: JSON.stringify(patch),
-    });
+        return scenarioResponse.status;
+      }, scenarioPatch)
+    : (await requestContext.post("/api/dev/scenario", { data: scenarioPatch })).status();
 
-    return response.status;
-  }, scenarioPatch);
-
-  expect(responseStatus).toBe(200);
+  expect(response).toBe(200);
 };
 
 const simulateNftUpdate = async (page: Page, simulateNftUpdateInput: SimulateNftUpdateInput): Promise<number> => {

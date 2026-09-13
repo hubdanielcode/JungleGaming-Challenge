@@ -76,6 +76,14 @@ const NftDetailPage = () => {
 
   const nft = nftQuery.data;
   const favorite = favorites.data?.includes(nft.id) ?? false;
+  const toggleFavorite = () => {
+    if (!getSessionToken()) {
+      void navigate({ to: "/login" });
+      return;
+    }
+
+    favMutation.mutate();
+  };
   const max = Math.max(1, Math.min(nft.availableQuantity, nft.maxQuantityPerOrder));
   const related = (collectionQuery.data?.items ?? []).filter((x) => x.id !== nft.id).slice(0, 5);
 
@@ -87,7 +95,7 @@ const NftDetailPage = () => {
           backTo="/"
           showFavorite
           favoriteActive={favorite}
-          onToggleFavorite={() => favMutation.mutate()}
+          onToggleFavorite={toggleFavorite}
         />
 
         <div className="px-6 md:px-0">
@@ -143,7 +151,8 @@ const NftDetailPage = () => {
 
                 <button
                   type="button"
-                  onClick={() => favMutation.mutate()}
+                  onClick={toggleFavorite}
+                  aria-label={favorite ? `Remover ${nft.name} dos favoritos` : `Adicionar ${nft.name} aos favoritos`}
                   className="hidden size-8 place-items-center rounded-control border border-accent text-accent md:grid"
                 >
                   <Heart
@@ -206,7 +215,7 @@ const NftDetailPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => favMutation.mutate()}
+                    onClick={toggleFavorite}
                     className="hidden h-9 rounded-control border border-accent px-4 text-[10px] md:block"
                   >
                     <Heart

@@ -1,4 +1,4 @@
-import type { NFT } from "@/types";
+import type { NFT, NFTCategory, NFTNetwork } from "@/types";
 
 /* - Gerado por scripts/generateNftAvatars.ts: retrato geométrico de macaco com acessório variável,
  *   determinístico por seed. Optamos por isso em vez de um serviço externo de fotos aleatórias
@@ -41,6 +41,8 @@ const createNftFixture = (
     name,
     collection: collectionName,
     collectionId,
+    category: (["arte-digital", "fotografia", "musica", "arte-3d", "colecionaveis", "generativa", "jogos", "assinaturas", "utilidade"] as NFTCategory[])[id.charCodeAt(0) % 9],
+    network: (["ethereum", "polygon", "solana"] as NFTNetwork[])[id.charCodeAt(0) % 3],
     image: createNftImageUrl(id),
     gallery: [
       createNftImageUrl(id),

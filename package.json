@@ -14,6 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
+    "validate": "npm run typecheck && npm run lint && tsc -p tests/tsconfig.json --noEmit && npm run test:e2e && npm run lighthouse",
     "lighthouse": "node scripts/lighthouse.mjs",
     "generate:nft-avatars": "tsx scripts/generateNftAvatars.ts",
     "msw:init": "msw init public/ --save"

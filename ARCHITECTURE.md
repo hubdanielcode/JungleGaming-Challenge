@@ -231,27 +231,28 @@ Para referência rápida:
 3. ~~`onReconnect` do cliente Socket.IO não está conectado a uma reconciliação com a API REST~~ —
    resolvido: `AppShell` e a tela de confirmação revalidam via REST ao reconectar (seção 8).
 4. Regressão visual (Playwright) configurada para início, detalhe, carrinho e pagamento
-   (`tests/visual`); as baselines precisam ser geradas (`playwright test --update-snapshots`) e
-   commitadas a partir de uma execução real antes da entrega.
-5. Não há suíte de auditoria Lighthouse versionada além do script em `scripts/lighthouse.mjs` — os
-   relatórios de referência ainda precisam ser gerados e commitados em `reports/lighthouse`
-   rodando localmente (este ambiente de desenvolvimento não tem um navegador gráfico disponível).
+   (`tests/e2e/visualRegression.spec.ts`); as baselines ficam em
+   `tests/e2e/visualRegression.spec.ts-snapshots/` e devem ser atualizadas apenas após uma execução
+   real deliberada com `playwright test --update-snapshots`.
+5. A suíte Lighthouse em `scripts/lighthouse.mjs` executa três medições por página/perfil, grava HTML/JSON
+   e resumo em `reports/lighthouse/<data>/` e encerra com erro quando qualquer mediana fica abaixo
+   das metas do enunciado.
 6. `shadcn/ui` está presente como padrão de componente (Radix + Tailwind, API compatível), mas não
    há `components.json` nem a estrutura gerada formalmente pela CLI do shadcn — vale confirmar se
    isso atende ao enunciado ou se a origem literal dos componentes é exigida.
-7. Os filtros de categoria e de rede na Home (`src/routes/index.tsx`, estados
-   `unwiredCategoryLabels`/`unwiredNetworkLabels`) ainda são só visuais: a seleção fica em estado
-   local e não é enviada como parâmetro para a API. Preço e coleção já filtram de verdade.
-8. Os botões de aumentar/diminuir quantidade na página de detalhe do NFT
-   (`src/routes/nfts/$nftId.tsx`) não têm `aria-label`, diferente dos equivalentes no carrinho
-   (`CartItemRow.tsx`), que já têm.
-9. Seleção de carteira/rede no checkout: o formulário e o envio existem, mas falta simular estados
-   de conexão, recusa e desconexão de carteira, e a rede selecionada ainda não está funcionalmente
-   ligada ao resultado da compra.
+7. ~~Os filtros de categoria e de rede na Home eram apenas visuais~~ — resolvido: ambos agora
+   trafegam na query string, são aplicados pelo handler `GET /api/nfts` e têm cobertura E2E de URL,
+   resultado e persistência após refresh.
+8. ~~Os botões de aumentar/diminuir quantidade na página de detalhe do NFT não tinham `aria-label`~~ —
+   resolvido: ambos expõem rótulos acessíveis e a regressão é coberta por Playwright.
+9. ~~Seleção de carteira/rede no checkout sem conexão realista~~ — resolvido: o checkout simula conexão,
+   recusa e desconexão via endpoint MSW, usa a carteira selecionada como fonte de provedor/rede e o
+   endpoint de pedido rejeita combinações inconsistentes.
 10. ~~Não há cancelamento de requisições REST desatualizadas~~ — resolvido: `fetchNfts` e
     `fetchSingleNft` (`src/features/catalog/api.ts`) agora repassam o `signal` que o TanStack Query
     injeta em cada `queryFn` para o Axios, cancelando a requisição anterior quando a query key muda
     (busca digitada rápido, troca de filtro) antes da resposta chegar.
-11. Deploy público (URL no README), baselines de regressão visual (`__snapshots__`, via
-    `playwright test --update-snapshots`) e relatórios do Lighthouse ainda precisam ser gerados e
-    commitados antes da entrega.
+11. Deploy público está documentado no README. Baselines visuais e relatórios Lighthouse são artefatos
+    de execução: precisam ser gerados no ambiente final do projeto e versionados antes da entrega.
+12. O comando `npm run lighthouse` agora também funciona como gate: abaixo das metas, a execução termina
+    com erro em vez de produzir um relatório aparentemente aprovado.

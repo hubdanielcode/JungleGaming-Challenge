@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw";
-import type { Wallet, WalletInput } from "@/types";
+import type { Wallet, WalletInput, WalletNetwork, WalletProvider } from "@/types";
 import { mockDatabase } from "../db";
+import { getScenarioConfig } from "../scenarios";
 import { applyNetworkConditions, createApiErrorResponse, getSessionFromRequest } from "./shared";
 
 const walletHandlers = [
@@ -16,6 +17,32 @@ const walletHandlers = [
     return HttpResponse.json({
       items: mockDatabase.state.walletsByUser[storedSession.userId] ?? [],
     });
+  }),
+
+  http.post("/api/wallets/connect", async ({ request }) => {
+    await applyNetworkConditions();
+
+    const storedSession = getSessionFromRequest(request);
+
+    if (!storedSession) {
+      return createApiErrorResponse("UNAUTHENTICATED", "Faça login para conectar uma carteira.");
+    }
+
+    const walletInput = (await request.json()) as { provider: WalletProvider; network: WalletNetwork };
+    const scenarioConfig = getScenarioConfig();
+
+    if (scenarioConfig.walletConnectionOutcome === "rejected") {
+      return createApiErrorResponse("WALLET_CONNECTION_REJECTED", "A conexão da carteira foi recusada pelo provedor.");
+    }
+
+    const userWallets = mockDatabase.state.walletsByUser[storedSession.userId] ?? [];
+    const connectedWallet = userWallets.find((wallet) => wallet.provider === walletInput.provider && wallet.network === walletInput.network);
+
+    if (!connectedWallet) {
+      return createApiErrorResponse("VALIDATION_ERROR", "Nenhuma carteira cadastrada corresponde ao provedor e à rede selecionados.");
+    }
+
+    return HttpResponse.json(connectedWallet);
   }),
 
   http.post("/api/wallets", async ({ request }) => {

@@ -32,6 +32,8 @@ const nftHandlers = [
     const searchParameters = new URL(request.url).searchParams;
     const searchTerm = searchParameters.get("search")?.trim().toLowerCase();
     const collectionId = searchParameters.get("collectionId");
+    const category = searchParameters.get("category");
+    const network = searchParameters.get("network");
     const minimumPriceEth = searchParameters.get("minPrice");
     const maximumPriceEth = searchParameters.get("maxPrice");
     const selectedTags = searchParameters.getAll("tags") as NFT["tags"];
@@ -51,6 +53,14 @@ const nftHandlers = [
 
     if (collectionId) {
       filteredNftList = filteredNftList.filter((nft) => nft.collectionId === collectionId);
+    }
+
+    if (category) {
+      filteredNftList = filteredNftList.filter((nft) => nft.category === category);
+    }
+
+    if (network) {
+      filteredNftList = filteredNftList.filter((nft) => nft.network === network);
     }
 
     if (minimumPriceEth) {

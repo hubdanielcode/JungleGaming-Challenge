@@ -134,7 +134,7 @@ const AppShell = () => {
             >
               <ShoppingCart size={17} />
 
-              <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground">
+              <span className="absolute right-0 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[8px] font-bold leading-none text-accent-foreground">
                 {cartItemCount}
               </span>
             </Link>
@@ -160,7 +160,9 @@ const AppShell = () => {
               type="button"
               className="grid size-9 place-items-center rounded-control border border-border md:hidden"
               onClick={() => setIsMobileMenuOpen((currentState) => !currentState)}
-              aria-label="Abrir menu"
+              aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-navigation"
             >
               {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -168,7 +170,7 @@ const AppShell = () => {
         </div>
 
         {isMobileMenuOpen ? (
-          <div className="border-t border-border bg-surface px-4 py-4 md:hidden">
+          <div id="mobile-navigation" className="border-t border-border bg-surface px-4 py-4 md:hidden">
             <div className="grid gap-2 text-sm">
               {primaryNavigationItems.map((navigationItem) => (
                 <a

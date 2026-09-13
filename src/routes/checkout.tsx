@@ -3,13 +3,13 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MoreVertical, WalletCards } from "lucide-react";
 import { fetchCart, fetchCartQuote } from "@/features/cart/api";
-import { fetchUserWallets } from "@/features/wallets/api";
+import { connectWallet, fetchUserWallets } from "@/features/wallets/api";
 import { fetchProfile } from "@/features/profile/api";
 import { createOrder } from "@/features/orders/api";
 import { queryKeys } from "@/lib/queryClient";
 import { getActiveIdentityId, getSessionToken } from "@/lib/session";
 import { getPendingOrder, setPendingOrder } from "@/lib/pendingOrder";
-import type { Quote } from "@/types";
+import type { Quote, WalletNetwork, WalletProvider } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
@@ -37,8 +37,11 @@ const CheckoutPage = () => {
   const [emailOverride, setEmailOverride] = useState<string | null>(null);
   const name = nameOverride ?? profileQuery.data?.username ?? "";
   const email = emailOverride ?? profileQuery.data?.email ?? "";
-  const [provider, setProvider] = useState("coinbase");
-  const [selectedWalletId, setSelectedWalletId] = useState("");
+  const [provider, setProvider] = useState<WalletProvider | "">("");
+  const [network, setNetwork] = useState<WalletNetwork | "">("");
+  const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
+  const [walletConnectionStatus, setWalletConnectionStatus] = useState<"idle" | "connecting" | "connected" | "rejected" | "disconnected">("idle");
+  const [walletConnectionMessage, setWalletConnectionMessage] = useState("");
   const [error, setError] = useState("");
   const identityId = useMemo(() => getActiveIdentityId(), []);
 
@@ -75,7 +78,35 @@ const CheckoutPage = () => {
   }, [identityId, navigate]);
 
   const wallets = walletsQuery.data ?? [];
-  const selectedWallet = wallets.find((w) => w.id === selectedWalletId) ?? wallets[0];
+  const selectedWallet = selectedWalletId === null ? wallets[0] : wallets.find((wallet) => wallet.id === selectedWalletId);
+  const effectiveProvider: WalletProvider = provider || selectedWallet?.provider || "metamask";
+  const effectiveNetwork: WalletNetwork | "" = network || selectedWallet?.network || "";
+
+  const walletConnectionMutation = useMutation({
+    mutationFn: () => {
+      if (!effectiveNetwork) {
+        throw new Error("Selecione uma rede para conectar a carteira.");
+      }
+
+      return connectWallet(effectiveProvider, effectiveNetwork);
+    },
+    onMutate: () => {
+      setError("");
+      setWalletConnectionMessage("Aguardando confirmação da carteira...");
+      setWalletConnectionStatus("connecting");
+    },
+    onSuccess: (wallet) => {
+      setSelectedWalletId(wallet.id);
+      setProvider(wallet.provider);
+      setNetwork(wallet.network);
+      setWalletConnectionStatus("connected");
+      setWalletConnectionMessage(`${formatProviderName(wallet.provider)} conectado em ${formatNetworkName(wallet.network)}.`);
+    },
+    onError: (e) => {
+      setWalletConnectionStatus("rejected");
+      setWalletConnectionMessage(e instanceof Error ? e.message : "A conexão da carteira foi recusada.");
+    },
+  });
 
   const orderMutation = useMutation({
     mutationFn: () =>
@@ -85,6 +116,8 @@ const CheckoutPage = () => {
         collectorName: name.trim() || "Colecionador",
         collectorEmail: email.trim() || "contato@email.com",
         couponCode: cartQuery.data?.couponCode ?? null,
+        network: selectedWallet?.network ?? "ethereum",
+        walletProvider: selectedWallet?.provider ?? effectiveProvider,
       }),
 
     onSuccess: async (order) => {
@@ -129,6 +162,13 @@ const CheckoutPage = () => {
 
       return;
     }
+
+    if (walletConnectionStatus !== "connected") {
+      setError("Conecte a carteira e confirme a rede antes de finalizar a compra.");
+
+      return;
+    }
+
     orderMutation.mutate();
   };
 
@@ -188,12 +228,29 @@ const CheckoutPage = () => {
                   Rede<p className="text-accent font-semibold">*</p>
                 </span>
 
-                <select className="h-10 rounded-[3px] border border-border bg-transparent px-3 font-mono text-[12px] text-muted">
-                  <option>Selecione uma rede</option>
-
-                  <option>Ethereum</option>
-
-                  <option>Polygon</option>
+                <select
+                  value={network}
+                  onChange={(event) => {
+                    const nextNetwork = event.target.value as WalletNetwork;
+                    setNetwork(nextNetwork);
+                    const matchingWallet = wallets.find((wallet) => wallet.network === nextNetwork && wallet.provider === effectiveProvider);
+                    if (matchingWallet) {
+                      setSelectedWalletId(matchingWallet.id);
+                      setWalletConnectionStatus("disconnected");
+                      setWalletConnectionMessage("A rede mudou. Reconecte a carteira para confirmar a nova rede.");
+                    } else {
+                      setSelectedWalletId("");
+                      setWalletConnectionStatus("disconnected");
+                      setWalletConnectionMessage("Nenhuma carteira cadastrada combina com esta rede e provedor.");
+                    }
+                  }}
+                  aria-label="Rede"
+                  className="h-10 rounded-[3px] border border-border bg-transparent px-3 font-mono text-[12px] text-muted"
+                >
+                  <option value="">Selecione uma rede</option>
+                  <option value="ethereum">Ethereum</option>
+                  <option value="polygon">Polygon</option>
+                  <option value="solana">Solana</option>
                 </select>
               </label>
 
@@ -228,14 +285,29 @@ const CheckoutPage = () => {
                   Tipo de carteira<p className="text-accent font-semibold">*</p>
                 </span>
 
-                <select className="h-10 rounded-[3px] border border-border bg-transparent px-3 font-mono text-[12px]">
-                  <option>Selecione uma carteira</option>
-
-                  <option>MetaMask</option>
-
-                  <option>WalletConnect</option>
-
-                  <option>Coinbase Wallet</option>
+                <select
+                  value={effectiveProvider}
+                  onChange={(event) => {
+                    const nextProvider = event.target.value as WalletProvider;
+                    setProvider(nextProvider);
+                    const matchingWallet = wallets.find((wallet) => wallet.provider === nextProvider && (!network || wallet.network === network));
+                    if (matchingWallet) {
+                      setSelectedWalletId(matchingWallet.id);
+                      setNetwork(matchingWallet.network);
+                      setWalletConnectionStatus("disconnected");
+                      setWalletConnectionMessage("O provedor mudou. Reconecte a carteira para continuar.");
+                    } else {
+                      setSelectedWalletId("");
+                      setWalletConnectionStatus("disconnected");
+                      setWalletConnectionMessage("Nenhuma carteira cadastrada corresponde ao provedor selecionado.");
+                    }
+                  }}
+                  aria-label="Tipo de carteira"
+                  className="h-10 rounded-[3px] border border-border bg-transparent px-3 font-mono text-[12px]"
+                >
+                  <option value="metamask">MetaMask</option>
+                  <option value="walletconnect">WalletConnect</option>
+                  <option value="coinbase">Coinbase Wallet</option>
                 </select>
               </label>
 
@@ -330,11 +402,54 @@ const CheckoutPage = () => {
             <h3 className="mt-5 text-center font-display text-[15px] font-bold">Carteira e rede</h3>
 
             <Providers
-              provider={provider}
-              setProvider={setProvider}
+              provider={effectiveProvider}
+              network={effectiveNetwork}
+              wallets={wallets}
+              onSelect={(nextProvider, wallet) => {
+                setProvider(nextProvider);
+                if (wallet) {
+                  setSelectedWalletId(wallet.id);
+                  setNetwork(wallet.network);
+                }
+                setWalletConnectionStatus("disconnected");
+                setWalletConnectionMessage("O provedor mudou. Conecte a carteira para continuar.");
+              }}
             />
 
-            {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+            {walletConnectionMessage && (
+              <p
+                role={walletConnectionStatus === "rejected" || walletConnectionStatus === "disconnected" ? "alert" : "status"}
+                className={`mt-3 text-xs ${walletConnectionStatus === "connected" ? "text-accent" : "text-danger"}`}
+              >
+                {walletConnectionMessage}
+              </p>
+            )}
+
+            {error && <p role="alert" className="mt-3 text-xs text-danger">{error}</p>}
+
+            {walletConnectionStatus === "connected" ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-3 h-10 w-full"
+                onClick={() => {
+                  setWalletConnectionStatus("disconnected");
+                  setWalletConnectionMessage("Carteira desconectada. Conecte novamente antes de finalizar.");
+                }}
+              >
+                Desconectar carteira
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="mt-3 h-10 w-full"
+                onClick={() => walletConnectionMutation.mutate()}
+                disabled={walletConnectionMutation.isPending || !effectiveNetwork}
+              >
+                {walletConnectionMutation.isPending ? "Conectando..." : "Conectar carteira"}
+              </Button>
+            )}
+
             <Button
               type="submit"
               disabled={orderMutation.isPending}
@@ -357,26 +472,24 @@ const CheckoutPage = () => {
           </h1>
 
           <div className="mt-3 grid gap-2">
-            {["Reserva", "Principal"].map((label, index) => (
+            {wallets.map((wallet) => (
               <button
                 type="button"
-                key={label}
-                onClick={() => setSelectedWalletId(wallets[index]?.id ?? "")}
-                className={`flex items-center justify-between rounded-control bg-surface p-3 text-left ${index === 0 ? "border border-accent" : "border border-transparent"}`}
+                key={wallet.id}
+                onClick={() => {
+                  setSelectedWalletId(wallet.id);
+                  setProvider(wallet.provider);
+                  setNetwork(wallet.network);
+                  setWalletConnectionStatus("disconnected");
+                  setWalletConnectionMessage("Carteira selecionada. Conecte para confirmar a operação.");
+                }}
+                className={`flex items-center justify-between rounded-control bg-surface p-3 text-left ${selectedWallet?.id === wallet.id ? "border border-accent" : "border border-transparent"}`}
               >
-                <span>
-                  <p className="block text-[12px] font-bold">{label}</p>
-
-                  <span className="text-[9px] text-muted">
-                    {index === 0 ? "nova.kurio.eth" : "0xA91F...E82C"}
-                    Rede {index === 0 ? "Polygon" : "principal Ethereum"}
-                  </span>
+                <span className="min-w-0">
+                  <p className="block text-[12px] font-bold">{wallet.label}</p>
+                  <span className="block truncate text-[9px] text-muted">{wallet.address} · {formatNetworkName(wallet.network)}</span>
                 </span>
-
-                <MoreVertical
-                  size={15}
-                  className="text-muted"
-                />
+                <MoreVertical size={15} className="shrink-0 text-muted" />
               </button>
             ))}
           </div>
@@ -384,9 +497,35 @@ const CheckoutPage = () => {
           <h2 className="mt-6 font-display text-[14px] font-bold">Carteira e rede</h2>
 
           <Providers
-            provider={provider}
-            setProvider={setProvider}
+            provider={effectiveProvider}
+            network={effectiveNetwork}
+            wallets={wallets}
+            onSelect={(nextProvider, wallet) => {
+              setProvider(nextProvider);
+              if (wallet) {
+                setSelectedWalletId(wallet.id);
+                setNetwork(wallet.network);
+              }
+              setWalletConnectionStatus("disconnected");
+              setWalletConnectionMessage("O provedor mudou. Conecte a carteira para continuar.");
+            }}
           />
+
+          {walletConnectionMessage && (
+            <p role={walletConnectionStatus === "rejected" || walletConnectionStatus === "disconnected" ? "alert" : "status"} className={`mt-3 text-xs ${walletConnectionStatus === "connected" ? "text-accent" : "text-danger"}`}>
+              {walletConnectionMessage}
+            </p>
+          )}
+
+          {walletConnectionStatus === "connected" ? (
+            <Button type="button" variant="secondary" className="mt-3 h-10 w-full" onClick={() => { setWalletConnectionStatus("disconnected"); setWalletConnectionMessage("Carteira desconectada. Conecte novamente antes de finalizar."); }}>
+              Desconectar carteira
+            </Button>
+          ) : (
+            <Button type="button" className="mt-3 h-10 w-full" onClick={() => walletConnectionMutation.mutate()} disabled={walletConnectionMutation.isPending || !effectiveNetwork}>
+              {walletConnectionMutation.isPending ? "Conectando..." : "Conectar carteira"}
+            </Button>
+          )}
 
           <div className="mt-5 flex items-center justify-between border-t border-border pt-4 text-[15px] font-bold">
             <span>Total:</span>
@@ -394,7 +533,7 @@ const CheckoutPage = () => {
             <span className="text-accent">{quoteQuery.data?.totalEth ?? "0"} ETH</span>
           </div>
 
-          {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+          {error && <p role="alert" className="mt-3 text-xs text-danger">{error}</p>}
 
           <Button
             type="submit"
@@ -439,29 +578,44 @@ const Summary = ({ quote }: { quote: Quote | undefined }) => (
   </div>
 );
 
-const Providers = ({ provider, setProvider }: { provider: string; setProvider: (provider: string) => void }) => (
+const formatNetworkName = (walletNetwork: WalletNetwork): string =>
+  walletNetwork === "ethereum" ? "Ethereum" : walletNetwork === "polygon" ? "Polygon" : "Solana";
+
+const Providers = ({
+  provider,
+  network,
+  wallets,
+  onSelect,
+}: {
+  provider: WalletProvider;
+  network: WalletNetwork | "";
+  wallets: Array<{ id: string; provider: WalletProvider; network: WalletNetwork }>;
+  onSelect: (provider: WalletProvider, wallet?: { id: string; provider: WalletProvider; network: WalletNetwork }) => void;
+}) => (
   <div className="mt-3 grid gap-2">
-    {["walletconnect", "metamask", "coinbase"].map((p) => (
-      <button
-        type="button"
-        key={provider}
-        onClick={() => setProvider(provider)}
-        className={`flex h-10 items-center justify-between rounded-control border px-3 text-[11px] ${provider === p ? "border-accent" : "border-border"}`}
-      >
-        <span className="flex items-center gap-2">
-          <span
-            className={`grid size-3 place-items-center rounded-full border border-accent ${provider === p ? "after:size-1 after:rounded-full after:bg-accent after:content-['']" : ""}`}
-          />
+    {(["walletconnect", "metamask", "coinbase"] as WalletProvider[]).map((walletProvider) => {
+      const matchingWallet = wallets.find((wallet) => wallet.provider === walletProvider && (!network || wallet.network === network));
+      const isSelected = provider === walletProvider;
 
-          {formatProviderName(p)}
-        </span>
-
-        <WalletCards
-          size={14}
-          className="text-accent"
-        />
-      </button>
-    ))}
+      return (
+        <button
+          type="button"
+          key={walletProvider}
+          onClick={() => onSelect(walletProvider, matchingWallet)}
+          className={`flex h-10 items-center justify-between rounded-control border px-3 text-[11px] ${isSelected ? "border-accent" : "border-border"}`}
+          aria-pressed={isSelected}
+        >
+          <span className="flex items-center gap-2">
+            <span className={`grid size-3 place-items-center rounded-full border border-accent ${isSelected ? "after:size-1 after:rounded-full after:bg-accent after:content-['']" : ""}`} />
+            {formatProviderName(walletProvider)}
+          </span>
+          <span className="flex items-center gap-2">
+            {!matchingWallet ? <span className="text-[9px] text-muted-2">não cadastrada</span> : null}
+            <WalletCards size={14} className="text-accent" />
+          </span>
+        </button>
+      );
+    })}
   </div>
 );
 
