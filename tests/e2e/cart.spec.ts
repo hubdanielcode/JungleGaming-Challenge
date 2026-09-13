@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { knownCoupons, loginThroughUserInterface, resetMockedBackend } from "./support/testHelpers";
+import { addFirstCatalogNftToCart, knownCoupons, loginThroughUserInterface, resetMockedBackend } from "./support/testHelpers";
 
 /* - Cobre o grupo "carrinho completo": quantidade, remoção, cupom válido/expirado e persistência. - */
 
@@ -8,11 +8,7 @@ test.describe("Carrinho de NFTs", () => {
     await resetMockedBackend(page);
   });
 
-  const addFirstNftToCart = async (page: import("@playwright/test").Page) => {
-    await page.goto("/");
-    await page.locator('button[aria-label^="Adicionar"][aria-label$="ao carrinho"]').first().click();
-    await page.waitForURL("/cart");
-  };
+  const addFirstNftToCart = addFirstCatalogNftToCart;
 
   test("aumentar e diminuir quantidade recalcula o total da linha", async ({ page }) => {
     await addFirstNftToCart(page);
@@ -44,7 +40,7 @@ test.describe("Carrinho de NFTs", () => {
     await addFirstNftToCart(page);
 
     await page.getByLabel("Código promocional").fill(knownCoupons.activePercentOff);
-    await page.locator('button:has(svg.lucide-ticket)').click();
+    await page.locator("button:has(svg.lucide-ticket)").click();
 
     await expect(page.getByText(`Cupom ${knownCoupons.activePercentOff} aplicado`)).toBeVisible();
     await expect(page.getByText("Desconto").locator("xpath=following-sibling::span")).not.toHaveText("0 ETH");
@@ -54,7 +50,7 @@ test.describe("Carrinho de NFTs", () => {
     await addFirstNftToCart(page);
 
     await page.getByLabel("Código promocional").fill(knownCoupons.expired);
-    await page.locator('button:has(svg.lucide-ticket)').click();
+    await page.locator("button:has(svg.lucide-ticket)").click();
 
     await expect(page.getByText("Cupom inválido ou expirado.")).toBeVisible();
     await expect(page.getByText(`Cupom ${knownCoupons.expired} aplicado`)).toHaveCount(0);

@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { knownTestUsers, loginThroughUserInterface, resetMockedBackend } from "./support/testHelpers";
 
-/*
- * - Cobre o fluxo de conta exigido pelo enunciado: edição de perfil, avatar, senha, carteiras e validações. Todas as operações são executadas pela interface para verificar o resultado visível da mutation, enquanto o backend continua sendo atendido pelos handlers do MSW. -
- */
+/* - Cobre o fluxo de conta exigido pelo enunciado: edição de perfil, avatar, senha, carteiras e validações. Todas as operações são executadas pela interface para verificar o resultado visível da mutation, enquanto o backend continua sendo atendido pelos handlers do MSW. - */
 
 test.describe("Perfil e carteiras", () => {
   test.beforeEach(async ({ page }) => {
     await resetMockedBackend(page);
   });
+
+  /* - Valida a edição dos dados básicos do perfil e o ciclo completo do avatar: upload, atualização visual e remoção. - */
 
   test("edita o perfil e atualiza o avatar", async ({ page }) => {
     await loginThroughUserInterface(page);
@@ -43,6 +43,8 @@ test.describe("Perfil e carteiras", () => {
     await expect(page.locator('img[alt=""]')).toHaveCount(0);
   });
 
+  /* - Valida as regras de senha pela interface, cobrindo senha curta, confirmação divergente e atualização válida. - */
+
   test("rejeita senha inválida e aceita uma nova senha válida", async ({ page }) => {
     await loginThroughUserInterface(page);
     await page.goto("/profile");
@@ -66,7 +68,9 @@ test.describe("Perfil e carteiras", () => {
     await expect(page.getByText("Senha atualizada.")).toBeVisible();
   });
 
-  test("valida o endereço e cadastra uma carteira secundária", async ({ page }) => {
+  /* - Valida a criação de uma carteira secundária, incluindo a validação do endereço, e depois confirma que uma carteira existente pode ser editada pela interface. - */
+
+  test("valida o endereço, cadastra e edita uma carteira secundária", async ({ page }) => {
     await loginThroughUserInterface(page);
     await page.goto("/wallets");
 
@@ -90,7 +94,35 @@ test.describe("Perfil e carteiras", () => {
     await page.getByRole("button", { name: "Salvar carteira" }).click();
 
     await expect(page.getByText("Reserva")).toBeVisible();
+
+    /* - Reabre a carteira secundária criada anteriormente e verifica a atualização dos dados através da mutation de edição. - */
+
+    await page.getByRole("button", { name: "Editar carteira secundária" }).click();
+    await page.getByLabel("Apelido da carteira").fill("Reserva atualizada");
+    await page.getByLabel("Rede").selectOption("ethereum");
+    await page.getByRole("button", { name: "Atualizar carteira" }).click();
+
+    await expect(page.getByText("Reserva atualizada")).toBeVisible();
   });
+
+  /* - Valida a edição de uma carteira principal que já existe no estado inicial do usuário de teste. - */
+
+  test("edita a carteira principal existente", async ({ page }) => {
+    await loginThroughUserInterface(page);
+    await page.goto("/wallets");
+
+    await expect(page.getByRole("button", { name: "Editar carteira principal" })).toBeVisible();
+    await page.getByRole("button", { name: "Editar carteira principal" }).click();
+
+    await page.getByLabel("Apelido da carteira").fill("Principal atualizada");
+    await page.getByLabel("Endereço da carteira").fill("0xABCDEF123456");
+    await page.getByRole("button", { name: "Atualizar carteira" }).click();
+
+    await expect(page.getByLabel("Apelido da carteira")).toHaveValue("Principal atualizada");
+    await expect(page.getByLabel("Endereço da carteira")).toHaveValue("0xABCDEF123456");
+  });
+
+  /* - Garante que a regra de negócio impede o cadastro de mais de uma carteira principal para o mesmo usuário. - */
 
   test("impede cadastrar uma segunda carteira principal", async ({ page }) => {
     await loginThroughUserInterface(page);

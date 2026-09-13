@@ -6,6 +6,7 @@ const knownTestUsers = {
     password: "kurio123",
     username: "andreza.colecionadora",
   },
+
   secondary: {
     email: "daniel.dev@kurio.test",
     password: "kurio123",
@@ -37,18 +38,23 @@ interface SimulateNftUpdateInput {
   nftId: string;
   priceEth?: string;
   availableQuantity?: number;
+  soldOut?: boolean;
   eventVersion?: number;
 }
 
 /* - Os endpoints de controle dos mocks são chamados pelo próprio browser para que o request atravesse o Service Worker do MSW. Assim, o teste não depende de uma API externa ou de um servidor de mock separado do fluxo que a aplicação realmente utiliza. - */
+
 const resetMockedBackend = async (page: Page) => {
   await page.goto("/");
   await page.locator("body").waitFor();
+
+  console.log("URL:", await page.url());
 
   const responseStatus = await page.evaluate(async () => {
     const response = await fetch("/api/dev/reset", {
       method: "POST",
     });
+
     return response.status;
   });
 
@@ -62,6 +68,7 @@ const applyScenarioPatch = async (page: Page, scenarioPatch: ScenarioConfigPatch
       headers: {
         "Content-Type": "application/json",
       },
+
       body: JSON.stringify(patch),
     });
 
@@ -72,12 +79,10 @@ const applyScenarioPatch = async (page: Page, scenarioPatch: ScenarioConfigPatch
 };
 
 const simulateNftUpdate = async (page: Page, simulateNftUpdateInput: SimulateNftUpdateInput): Promise<number> => {
-  const simulateNftUpdateResult = await page.evaluate(async (input) => {
+  const result = await page.evaluate(async (input) => {
     const response = await fetch("/api/dev/simulate/nft-update", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     });
 
@@ -88,10 +93,10 @@ const simulateNftUpdate = async (page: Page, simulateNftUpdateInput: SimulateNft
     };
   }, simulateNftUpdateInput);
 
-  expect(simulateNftUpdateResult.ok).toBeTruthy();
-  expect(simulateNftUpdateResult.status).toBe(200);
+  expect(result.ok).toBeTruthy();
+  expect(result.status).toBe(200);
 
-  return simulateNftUpdateResult.body.eventVersion;
+  return result.body.eventVersion;
 };
 
 const loginThroughUserInterface = async (page: Page, credentials: TestUserCredentials = knownTestUsers.primary) => {
@@ -112,18 +117,30 @@ const loginThroughUserInterface = async (page: Page, credentials: TestUserCreden
     .fill(credentials.password);
 
   await page.getByRole("button", { name: "Entrar" }).click();
-
-  await expect(page).toHaveURL(/\/(?:\?page=1)?$/, {
-    timeout: 15000,
-  });
+  await expect(page).toHaveURL(/\/(?:\?page=1)?$/);
 };
 
 const getFirstNftCardLink = async (page: Page) => {
   const firstNftLink = page.locator('a[aria-label^="Ver detalhes de"]').first();
-
   await expect(firstNftLink).toBeVisible();
 
   return firstNftLink;
+};
+
+/* - Não existe botão "adicionar ao carrinho" no catálogo/Home (o enunciado só pede favoritos e navegação para o NFT ali) — a compra acontece no Detalhe, pelo botão "COMPRAR". Este helper centraliza esse fluxo para os testes de carrinho/sessão. - */
+
+const addFirstCatalogNftToCart = async (page: Page) => {
+  await page.goto("/");
+  const firstNftLink = await getFirstNftCardLink(page);
+  await firstNftLink.click();
+
+  const [cartResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/api/cart/items") && response.request().method() === "POST"),
+    page.getByRole("button", { name: "COMPRAR" }).click(),
+  ]);
+
+  expect(cartResponse.ok()).toBeTruthy();
+  await page.waitForURL("/cart");
 };
 
 const extractNftNameFromCardLink = async (page: Page) => {
@@ -145,5 +162,6 @@ export {
   simulateNftUpdate,
   loginThroughUserInterface,
   getFirstNftCardLink,
+  addFirstCatalogNftToCart,
   extractNftNameFromCardLink,
 };

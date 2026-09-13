@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Plus } from "lucide-react";
-import { createWallet, fetchUserWallets } from "@/features/wallets/api";
+import { createWallet, fetchUserWallets, updateWallet } from "@/features/wallets/api";
 import { getSessionToken } from "@/lib/session";
 import { queryKeys } from "@/lib/queryClient";
 import type { WalletKind, WalletNetwork, WalletProvider } from "@/types";
@@ -11,11 +11,21 @@ import { AccountSidebar } from "@/components/common/AccountSidebar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
-const SelectField = ({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode }) => (
+const SelectField = ({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) => (
   <label className="grid gap-1.5">
     <span className="text-[15px]">
       {label}
-      <p className="text-accent font-semibold">*</p>
+      <b className="text-accent">*</b>
     </span>
 
     <div className="relative">
@@ -58,6 +68,11 @@ const WalletsPage = () => {
   const [referral, setReferral] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+
+  /* - Guarda o identificador da carteira que está sendo editada. Quando existe um identificador, o mesmo formulário passa a atualizar uma carteira existente em vez de criar uma nova. - */
+
+  const [editingWalletId, setEditingWalletId] = useState<string | null>(null);
+
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -67,21 +82,33 @@ const WalletsPage = () => {
   }, [navigate, token]);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createWallet({
+    /* - Usa o mesmo formulário tanto para criação quanto para edição. A presença de editingWalletId determina se a operação será feita através do endpoint de atualização ou de criação. - */
+
+    mutationFn: () => {
+      const walletInput = {
         kind,
         address: address.trim(),
         network: (network || "ethereum") as WalletNetwork,
         provider,
         label: nickname.trim() || displayName.trim() || "Carteira principal",
-      }),
+      };
+
+      if (editingWalletId) {
+        return updateWallet(editingWalletId, walletInput);
+      }
+
+      return createWallet(walletInput);
+    },
+
+    /* - Depois de salvar a carteira, encerra o modo de edição e invalida a query para buscar novamente os dados persistidos pelo backend. - */
 
     onSuccess: async () => {
       setError("");
+      setEditingWalletId(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.wallets.all() });
     },
 
-    onError: (error) => setError(error instanceof Error ? error.message : "Não foi possível salvar a carteira."),
+    onError: (e) => setError(e instanceof Error ? e.message : "Não foi possível salvar a carteira."),
   });
 
   if (!token) {
@@ -90,7 +117,6 @@ const WalletsPage = () => {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-
     if (!address.trim()) {
       return setError("Informe o endereço da carteira.");
     }
@@ -98,7 +124,23 @@ const WalletsPage = () => {
     mutation.mutate();
   };
 
+  /* - Identifica as carteiras existentes para exibir as ações de edição somente quando houver uma carteira correspondente. - */
+
+  const primary = walletsQuery.data?.find((wallet) => wallet.kind === "primary");
   const secondary = walletsQuery.data?.find((wallet) => wallet.kind === "secondary");
+
+  /* - Preenche o formulário com os dados da carteira selecionada e ativa o modo de edição. O formulário continua sendo o mesmo utilizado para criação. - */
+
+  const startEditingWallet = (wallet: NonNullable<typeof walletsQuery.data>[number]) => {
+    setEditingWalletId(wallet.id);
+    setKind(wallet.kind);
+    setAddress(wallet.address);
+    setNetwork(wallet.network);
+    setProvider(wallet.provider);
+    setNickname(wallet.label);
+    setError("");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="mx-auto max-w-300 px-0 pb-20 pt-8">
@@ -111,6 +153,18 @@ const WalletsPage = () => {
               <h1 className="font-display text-[18px] font-bold">Carteira principal</h1>
 
               <p className="mt-1 text-[13px] text-muted">Estas carteiras ficam disponíveis no pagamento e para receber NFTs comprados.</p>
+
+              {/* - Exibe a ação de edição somente quando já existe uma carteira principal cadastrada. - */}
+
+              {primary && (
+                <button
+                  type="button"
+                  onClick={() => startEditingWallet(primary)}
+                  className="mt-2 text-[13px] font-bold text-accent"
+                >
+                  Editar carteira principal
+                </button>
+              )}
             </div>
 
             <button
@@ -133,7 +187,7 @@ const WalletsPage = () => {
           >
             <label className="grid gap-1.5">
               <span className="text-[15px]">
-                Nome de exibição<p className="text-accent font-semibold">*</p>
+                Nome de exibição<b className="text-accent">*</b>
               </span>
 
               <Input
@@ -145,7 +199,7 @@ const WalletsPage = () => {
 
             <label className="grid gap-1.5">
               <span className="text-[15px]">
-                Apelido da carteira<p className="text-accent font-semibold">*</p>
+                Apelido da carteira<b className="text-accent">*</b>
               </span>
 
               <Input
@@ -179,7 +233,7 @@ const WalletsPage = () => {
 
             <label className="grid gap-1.5">
               <span className="text-[15px]">
-                Nome do perfil<p className="text-accent font-semibold">*</p>
+                Nome do perfil<b className="text-accent">*</b>
               </span>
 
               <Input
@@ -191,7 +245,7 @@ const WalletsPage = () => {
 
             <label className="grid gap-1.5">
               <span className="text-[15px]">
-                Endereço da carteira<p className="text-accent font-semibold">*</p>
+                Endereço da carteira<b className="text-accent">*</b>
               </span>
 
               <Input
@@ -214,7 +268,7 @@ const WalletsPage = () => {
 
             <label className="grid gap-1.5">
               <span className="text-[15px]">
-                Código de indicação<p className="text-accent font-semibold">*</p>
+                Código de indicação<b className="text-accent">*</b>
               </span>
 
               <Input
@@ -226,7 +280,7 @@ const WalletsPage = () => {
 
             <label className="grid gap-1.5">
               <span className="text-[15px]">
-                E-mail<p className="text-accent font-semibold">*</p>
+                E-mail<b className="text-accent">*</b>
               </span>
 
               <Input
@@ -239,7 +293,7 @@ const WalletsPage = () => {
 
             <div className="grid gap-1.5">
               <span className="text-[15px]">
-                Nome ENS <p className="text-accent font-semibold">*</p>
+                Nome ENS <b className="text-accent">*</b>
               </span>
 
               <div className="flex">
@@ -263,8 +317,23 @@ const WalletsPage = () => {
                 disabled={mutation.isPending}
                 className="mt-0 h-10 px-3"
               >
-                {mutation.isPending ? "Salvando..." : "Salvar carteira"}
+                {mutation.isPending ? "Salvando..." : editingWalletId ? "Atualizar carteira" : "Salvar carteira"}
               </Button>
+
+              {/* - Permite abandonar o modo de edição e voltar o formulário para o comportamento de criação de uma nova carteira. - */}
+
+              {editingWalletId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingWalletId(null);
+                    setError("");
+                  }}
+                  className="ml-3 text-[13px] font-bold text-foreground"
+                >
+                  Cancelar edição
+                </button>
+              )}
             </div>
           </form>
 
@@ -274,6 +343,19 @@ const WalletsPage = () => {
                 <h2 className="font-display text-[18px] font-bold">Carteira secundária</h2>
 
                 <p className="mt-1 text-[13px] text-muted">{secondary ? secondary.label : "Você ainda não adicionou uma carteira secundária."}</p>
+
+                {/*
+                 * - Exibe a ação de edição somente quando existe uma carteira secundária cadastrada. -
+                 */}
+                {secondary && (
+                  <button
+                    type="button"
+                    onClick={() => startEditingWallet(secondary)}
+                    className="mt-2 text-[13px] font-bold text-accent"
+                  >
+                    Editar carteira secundária
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2 text-[13px] text-foreground">

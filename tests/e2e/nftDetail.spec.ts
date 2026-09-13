@@ -34,10 +34,10 @@ test.describe("Detalhe do NFT", () => {
     const detailHref = await firstCardLink.getAttribute("href");
     const nftId = detailHref!.split("/nfts/")[1];
 
-    await simulateNftUpdate(page, { nftId, availableQuantity: 0 });
+    await simulateNftUpdate(page, { nftId, soldOut: true });
     await page.goto(detailHref!);
 
-    await expect(page.getByRole("button", { name: "Edição esgotada" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Esgotado" })).toBeDisabled();
   });
 
   test("botões de quantidade respeitam o mínimo de 1 e o limite máximo por pedido", async ({ page }) => {
@@ -45,11 +45,11 @@ test.describe("Detalhe do NFT", () => {
     const firstCardLink = await getFirstNftCardLink(page);
     await firstCardLink.click();
 
-    /* - Os botões de quantidade (Minus/Plus do lucide-react) não têm aria-label — este é um dos  achados de cessibilidade documentados no ARCHITECTURE.md. Enquanto o bug não é corrigido, localizamos pelo ícone SVG renderizado (classe "lucide-minus"/"lucide-plus"), que é a única  forma estável de alcançar esses botões hoje. - */
+    /* - Os botões de quantidade (Minus/Plus do lucide-react) não têm aria-label — este é um dos  achados de acessibilidade documentados no ARCHITECTURE.md. Enquanto o bug não é corrigido, localizamos pelo ícone SVG renderizado (classe "lucide-minus"/"lucide-plus"), que é a única  forma estável de alcançar esses botões hoje. O valor da quantidade também não tem um seletor  próprio (nenhuma classe ou aria-label): é localizado pelo span logo depois do botão "-". - */
 
     const decreaseButton = page.locator("button:has(svg.lucide-minus)");
     const increaseButton = page.locator("button:has(svg.lucide-plus)");
-    const quantityValue = page.locator("span.font-mono").filter({ hasText: /^\d+$/ });
+    const quantityValue = page.locator("button:has(svg.lucide-minus) + span");
 
     await expect(quantityValue).toHaveText("1");
     await expect(decreaseButton).toBeDisabled();
@@ -58,18 +58,26 @@ test.describe("Detalhe do NFT", () => {
     await expect(quantityValue).toHaveText("2");
     await expect(decreaseButton).toBeEnabled();
 
-    /* - Clica no "+" repetidamente até estourar o máximo exibido ao lado de "Quantidade"; o botão deve travar exatamente nesse número. */
+    /* - Não há rótulo de "quantidade máxima" na interface hoje (outro achado de UX a documentar), então descobrimos o limite clicando em "+" até o botão travar sozinho, com um teto de segurança para não entrar em loop infinito caso o botão nunca desabilite. */
 
-    const maximumQuantityLabel = await page.getByText(/^Máximo \d+$/).textContent();
-    const maximumQuantity = Number(maximumQuantityLabel?.match(/\d+/)?.[0] ?? "1");
+    const safetyClickCap = 50;
+    let observedMaximumQuantity = 2;
 
-    for (let clickIndex = 0; clickIndex < maximumQuantity + 2; clickIndex += 1) {
-      if (await increaseButton.isDisabled()) break;
+    for (let clickIndex = 0; clickIndex < safetyClickCap; clickIndex += 1) {
+      if (await increaseButton.isDisabled()) {
+        break;
+      }
+
       await increaseButton.click();
+      observedMaximumQuantity += 1;
     }
 
-    await expect(quantityValue).toHaveText(String(maximumQuantity));
     await expect(increaseButton).toBeDisabled();
+    await expect(quantityValue).toHaveText(String(observedMaximumQuantity));
+
+    /* - O "+" precisa ter parado antes do teto de segurança — se não parou, o limite máximo por edição não está sendo respeitado (regressão do requisito "limite de quantidade" do enunciado). */
+
+    expect(observedMaximumQuantity).toBeLessThan(2 + safetyClickCap);
   });
 
   test("BUG CONHECIDO — favoritar como visitante falha em silêncio no Detalhe (a Home redireciona, o Detalhe não)", async ({ page }) => {

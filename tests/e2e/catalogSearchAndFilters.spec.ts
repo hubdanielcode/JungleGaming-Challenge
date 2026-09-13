@@ -79,20 +79,20 @@ test.describe("Catálogo — busca, filtros e paginação", () => {
   });
 
   test("skeleton de carregamento aparece antes dos cards do catálogo", async ({ page }) => {
-    await applyScenarioPatch(page.request, { latency: "slow" });
+    await applyScenarioPatch(page, { latency: "slow" });
 
     await page.goto("/");
 
     /* - Com latência forçada para 1.5–3.5s, o skeleton precisa estar visível antes dos dados chegarem. - */
 
-    const loadingSkeleton = page.locator('[class*="animate-pulse"]').first();
+    const loadingSkeleton = page.locator('[class*="skeleton-shimmer"]').first();
     await expect(loadingSkeleton).toBeVisible();
 
     await expect(page.locator('a[aria-label^="Ver detalhes de"]').first()).toBeVisible({ timeout: 10000 });
   });
 
   test("falha transitória de rede não deixa a página quebrada e permite nova tentativa", async ({ page }) => {
-    await applyScenarioPatch(page.request, { transientFailureRate: 1, latency: "none" });
+    await applyScenarioPatch(page, { transientFailureRate: 1, latency: "none" });
 
     await page.goto("/");
 
@@ -100,7 +100,7 @@ test.describe("Catálogo — busca, filtros e paginação", () => {
 
     await expect(page.locator("body")).not.toHaveText("");
 
-    await applyScenarioPatch(page.request, { transientFailureRate: 0 });
+    await applyScenarioPatch(page, { transientFailureRate: 0 });
     await page.reload();
     await expect(page.locator('a[aria-label^="Ver detalhes de"]').first()).toBeVisible({ timeout: 10000 });
   });

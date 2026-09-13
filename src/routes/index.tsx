@@ -8,6 +8,7 @@ import { addCartItem } from "@/features/cart/api";
 import { addFavoriteNft, fetchFavoriteNftIds, removeFavoriteNft } from "@/features/favorites/api";
 import { queryKeys } from "@/lib/queryClient";
 import { getSessionToken } from "@/lib/session";
+import { showToast } from "@/hooks/useToast";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Slider } from "@/components/ui/Slider";
@@ -37,14 +38,7 @@ interface HomeSearchParameters {
 const CATALOG_MINIMUM_PRICE_IN_ETH = 0.02;
 const CATALOG_MAXIMUM_PRICE_IN_ETH = 12.3;
 
-/*
- * - O Figma desenha uma taxonomia de categorias e de redes mais ampla do que o catálogo mockado
- *   modela hoje (duas coleções: Kurio Apes e Kurio Editions, sem dimensão de rede por NFT). Nesta
- *   fase (fidelidade visual) reproduzimos a composição exatamente como desenhada, mas apenas os
- *   itens marcados com "collectionId" filtram o catálogo de verdade; os demais mantêm apenas o
- *   estado de marcação local, aguardando a decisão da Fase 2 sobre expandir o modelo de dados ou
- *   simplificar a taxonomia (ver ARCHITECTURE.md). -
- */
+/* - O Figma desenha uma taxonomia de categorias e de redes mais ampla do que o catálogo mockado modela hoje (duas coleções: Kurio Apes e Kurio Editions, sem dimensão de rede por NFT). Nesta fase (fidelidade visual) reproduzi a composição exatamente como desenhada, mas apenas os itens marcados com "collectionId" filtram o catálogo de verdade; os demais mantêm apenas o estado de marcação local. - */
 
 interface CatalogSidebarCollectionItem {
   label: string;
@@ -76,6 +70,7 @@ const catalogPromoBanners = [
     description: "Colecione edições escassas diretamente dos criadores antes da revelação pública.",
     image: "/images/nfts/emerald-ape-042.png",
   },
+
   {
     title: "Arte digital selecionada e muito mais",
     description: "Explore novos artistas, coleções verificadas e obras digitais que definem a cultura.",
@@ -91,6 +86,7 @@ const catalogJournalPosts = [
     excerpt: "Aprenda a colecionar, negociar e verificar ativos digitais.",
     image: "/images/nfts/neon-vessel-552.png",
   },
+
   {
     publishedAtLabel: "13 de setembro",
     readingTimeLabel: "Leitura de 2 min",
@@ -98,6 +94,7 @@ const catalogJournalPosts = [
     excerpt: "Conheça criadores que moldam a cultura digital.",
     image: "/images/nfts/emerald-ape-042.png",
   },
+
   {
     publishedAtLabel: "15 de setembro",
     readingTimeLabel: "Leitura de 3 min",
@@ -105,6 +102,7 @@ const catalogJournalPosts = [
     excerpt: "Entenda raridade, procedência, direitos autorais e utilidade.",
     image: "/images/nfts/sage-nomad-009.png",
   },
+
   {
     publishedAtLabel: "15 de setembro",
     readingTimeLabel: "Leitura de 2 min",
@@ -136,6 +134,7 @@ const HomePage = () => {
   ]);
 
   /* - Marcações puramente visuais das categorias que ainda não têm correspondência real no catálogo mockado (ver comentário acima). - */
+
   const [unwiredCategoryLabels, setUnwiredCategoryLabels] = useState<string[]>([]);
   const [unwiredNetworkLabels, setUnwiredNetworkLabels] = useState<string[]>([]);
 
@@ -172,7 +171,7 @@ const HomePage = () => {
 
   const nftListQuery = useQuery({
     queryKey: queryKeys.nfts.list(nftFilters),
-    queryFn: () => fetchNfts(nftFilters),
+    queryFn: ({ signal }) => fetchNfts(nftFilters, signal),
   });
 
   const featuredNftQuery = useQuery({
@@ -220,6 +219,12 @@ const HomePage = () => {
       queryClient.setQueryData(queryKeys.cart.all(), cart);
       await navigate({ to: "/cart" });
     },
+    onError: (error) =>
+      showToast({
+        variant: "danger",
+        title: "Não foi possível adicionar ao carrinho",
+        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+      }),
   });
 
   const updateSearch = (nextSearch: Partial<HomeSearchParameters>) => {
@@ -241,6 +246,7 @@ const HomePage = () => {
   const handleToggleSidebarCategory = (categoryItem: CatalogSidebarCollectionItem) => {
     if (categoryItem.collectionId) {
       updateSearch({ collectionId: searchParameters.collectionId === categoryItem.collectionId ? undefined : categoryItem.collectionId });
+
       return;
     }
 
@@ -638,6 +644,7 @@ const HomePage = () => {
             />
             <div className="flex flex-col justify-center px-5 py-5 text-center md:px-6">
               <h3 className="font-display text-[14px] font-bold leading-[1.35] text-foreground md:text-[15px]">{banner.title}</h3>
+
               <p className="mt-3 font-mono text-[9px] leading-4 text-muted md:text-[10px]">{banner.description}</p>
               <a
                 href="#catalogo"

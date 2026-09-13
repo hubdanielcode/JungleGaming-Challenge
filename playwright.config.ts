@@ -1,8 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/*
- * - Configuração central do Playwright. Sobe o Vite dev server com os mocks do MSW habilitados (VITE_ENABLE_MOCKS=true é o padrão do próprio app, mas fixamos aqui para deixar explícito), roda os três recortes de viewport exigidos pelo enunciado (desktop, tablet e mobile) e grava trace + vídeo apenas na primeira retentativa de um teste que falhou, para não pesar o disco em execuções verdes. -
- */
+/* - Configuração central do Playwright. Sobe o Vite dev server com os mocks do MSW habilitados (VITE_ENABLE_MOCKS=true é o padrão do próprio app, mas fixamos aqui para deixar explícito), roda os três recortes de viewport exigidos pelo enunciado (desktop, tablet e mobile) e grava trace + vídeo apenas na primeira retentativa de um teste que falhou, para não pesar o disco em execuções verdes. - */
 
 const isRunningOnCi = Boolean(process.env.CI);
 const developmentServerPort = 5173;
@@ -58,7 +56,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run dev",
+    command: "npm run dev:e2e",
     url: developmentServerBaseUrl,
     reuseExistingServer: !isRunningOnCi,
     timeout: 60000,

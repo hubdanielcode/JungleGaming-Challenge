@@ -6,18 +6,29 @@ import { fetchNfts, fetchSingleNft } from "@/features/catalog/api";
 import { addFavoriteNft, fetchFavoriteNftIds, removeFavoriteNft } from "@/features/favorites/api";
 import { addCartItem } from "@/features/cart/api";
 import { queryKeys } from "@/lib/queryClient";
+import { getSessionToken } from "@/lib/session";
 import { Button } from "@/components/ui/Button";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
 import { MobilePageHeader } from "@/components/common/MobilePageHeader";
 
 const NftDetailPage = () => {
-  const { nftId } = Route.useParams();
   const navigate = useNavigate();
+  const { nftId } = Route.useParams();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("details");
-  const nftQuery = useQuery({ queryKey: queryKeys.nfts.detail(nftId), queryFn: () => fetchSingleNft(nftId) });
-  const favorites = useQuery({ queryKey: queryKeys.favorites.all(), queryFn: fetchFavoriteNftIds });
+  const [cartError, setCartError] = useState("");
+
+  const nftQuery = useQuery({
+    queryKey: queryKeys.nfts.detail(nftId),
+    queryFn: ({ signal }) => fetchSingleNft(nftId, signal),
+  });
+
+  const favorites = useQuery({
+    queryKey: queryKeys.favorites.all(),
+    queryFn: fetchFavoriteNftIds,
+    enabled: Boolean(getSessionToken()),
+  });
 
   const collectionQuery = useQuery({
     queryKey: [...queryKeys.nfts.all, "related", nftId],
@@ -33,19 +44,22 @@ const NftDetailPage = () => {
   const cartMutation = useMutation({
     mutationFn: () => addCartItem({ nftId, quantity: quantity }),
     onSuccess: async (cart) => {
+      setCartError("");
       queryClient.setQueryData(queryKeys.cart.all(), cart);
       await navigate({ to: "/cart" });
     },
+    onError: (error) => setCartError(error instanceof Error ? error.message : "Não foi possível adicionar ao carrinho."),
   });
 
-  if (nftQuery.isLoading)
+  if (nftQuery.isLoading) {
     return (
       <div className="mx-auto max-w-300 p-8">
         <LoadingSkeleton className="h-150" />
       </div>
     );
+  }
 
-  if (!nftQuery.data)
+  if (!nftQuery.data) {
     return (
       <div className="mx-auto max-w-300 p-12 text-center">
         <h1 className="font-display text-2xl">NFT não encontrado</h1>
@@ -54,10 +68,11 @@ const NftDetailPage = () => {
           to="/"
           className="mt-4 inline-block text-accent"
         >
-          Voltar para o catálogo
+          Voltar ao mercado
         </Link>
       </div>
     );
+  }
 
   const nft = nftQuery.data;
   const favorite = favorites.data?.includes(nft.id) ?? false;
@@ -160,20 +175,22 @@ const NftDetailPage = () => {
                 <div className="mt-4 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     aria-label="Diminuir quantidade"
-                    className="grid size-9 place-items-center rounded-control bg-accent text-accent-foreground"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    className="grid size-9 place-items-center rounded-control bg-accent text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Minus size={15} />
                   </button>
 
-                  <span className="font-mono">{quantity}</span>
+                  <span>{quantity}</span>
 
                   <button
                     type="button"
-                    onClick={() => setQuantity(Math.min(max, quantity + 1))}
                     aria-label="Aumentar quantidade"
-                    className="grid size-9 place-items-center rounded-control bg-accent text-accent-foreground"
+                    onClick={() => setQuantity(Math.min(max, quantity + 1))}
+                    disabled={quantity >= max}
+                    className="grid size-9 place-items-center rounded-control bg-accent text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Plus size={15} />
                   </button>
@@ -184,7 +201,7 @@ const NftDetailPage = () => {
                     disabled={cartMutation.isPending || nft.edition.status === "sold_out"}
                     className="ml-auto h-9 px-7"
                   >
-                    {nft.edition.status === "sold_out" ? "Edição esgotada" : "COMPRAR"}
+                    {nft.edition.status === "sold_out" ? "Esgotado" : "COMPRAR"}
                   </Button>
 
                   <button
@@ -199,6 +216,15 @@ const NftDetailPage = () => {
                     Favoritar
                   </button>
                 </div>
+
+                {cartError && (
+                  <p
+                    role="alert"
+                    className="mt-3 text-[11px] leading-4 text-danger"
+                  >
+                    {cartError}
+                  </p>
+                )}
 
                 <div className="mt-5 grid gap-2 text-[11px] text-muted">
                   <p>ID do token: #{nft.id.slice(-4)}</p>
@@ -244,18 +270,18 @@ const NftDetailPage = () => {
                 registrada na rede.
               </p>
 
-              <p className="flex mt-4">
-                <p className="text-foreground font-bold mr-1">Rede:</p>
+              <p className="mt-4">
+                <b className="text-foreground">Rede:</b>
                 Cunhado na Ethereum com procedência imutável e metadados armazenados no IPFS.
               </p>
 
-              <p className="flex mt-3">
-                <p className="text-foreground font-bold mr-1">Contrato: </p>
+              <p className="mt-3">
+                <b className="text-foreground">Contrato:</b>
                 Direitos autorais do criador: 5% nas vendas secundárias, pagos automaticamente pelos mercados compatíveis.
               </p>
 
-              <p className="flex mt-3">
-                <p className="text-foreground font-bold mr-1">Direitos autorais: </p>
+              <p className="mt-3">
+                <b className="text-foreground">Direitos autorais:</b>
                 0x7A42...19E8 · Contrato inteligente ERC-721 verificado.
               </p>
             </div>
@@ -303,4 +329,5 @@ const NftDetailPage = () => {
   );
 };
 const Route = createFileRoute("/nfts/$nftId")({ component: NftDetailPage });
+
 export { Route };

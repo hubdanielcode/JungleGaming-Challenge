@@ -236,3 +236,22 @@ Para referência rápida:
 5. Não há suíte de auditoria Lighthouse versionada além do script em `scripts/lighthouse.mjs` — os
    relatórios de referência ainda precisam ser gerados e commitados em `reports/lighthouse`
    rodando localmente (este ambiente de desenvolvimento não tem um navegador gráfico disponível).
+6. `shadcn/ui` está presente como padrão de componente (Radix + Tailwind, API compatível), mas não
+   há `components.json` nem a estrutura gerada formalmente pela CLI do shadcn — vale confirmar se
+   isso atende ao enunciado ou se a origem literal dos componentes é exigida.
+7. Os filtros de categoria e de rede na Home (`src/routes/index.tsx`, estados
+   `unwiredCategoryLabels`/`unwiredNetworkLabels`) ainda são só visuais: a seleção fica em estado
+   local e não é enviada como parâmetro para a API. Preço e coleção já filtram de verdade.
+8. Os botões de aumentar/diminuir quantidade na página de detalhe do NFT
+   (`src/routes/nfts/$nftId.tsx`) não têm `aria-label`, diferente dos equivalentes no carrinho
+   (`CartItemRow.tsx`), que já têm.
+9. Seleção de carteira/rede no checkout: o formulário e o envio existem, mas falta simular estados
+   de conexão, recusa e desconexão de carteira, e a rede selecionada ainda não está funcionalmente
+   ligada ao resultado da compra.
+10. ~~Não há cancelamento de requisições REST desatualizadas~~ — resolvido: `fetchNfts` e
+    `fetchSingleNft` (`src/features/catalog/api.ts`) agora repassam o `signal` que o TanStack Query
+    injeta em cada `queryFn` para o Axios, cancelando a requisição anterior quando a query key muda
+    (busca digitada rápido, troca de filtro) antes da resposta chegar.
+11. Deploy público (URL no README), baselines de regressão visual (`__snapshots__`, via
+    `playwright test --update-snapshots`) e relatórios do Lighthouse ainda precisam ser gerados e
+    commitados antes da entrega.
