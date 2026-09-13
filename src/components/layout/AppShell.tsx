@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { Heart, LogIn, Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
+import { Heart, LogIn, Menu, Search, ShoppingCart, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerSessionExpiredHandler } from "@/lib/axios";

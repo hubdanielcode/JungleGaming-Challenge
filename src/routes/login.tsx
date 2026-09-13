@@ -131,7 +131,7 @@ const LoginPage = () => {
 };
 
 const Route = createFileRoute("/login")({
-  validateSearch: (searchParameters) => ({
+  validateSearch: (searchParameters): { redirect?: string } => ({
     redirect: typeof searchParameters.redirect === "string" ? searchParameters.redirect : undefined,
   }),
   component: LoginPage,

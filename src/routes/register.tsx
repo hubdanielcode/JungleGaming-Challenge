@@ -164,7 +164,7 @@ const RegisterPage = () => {
 };
 
 const Route = createFileRoute("/register")({
-  validateSearch: (searchParameters) => ({
+  validateSearch: (searchParameters): { redirect?: string } => ({
     redirect: typeof searchParameters.redirect === "string" ? searchParameters.redirect : undefined,
   }),
   component: RegisterPage,
