@@ -61,6 +61,7 @@
 
   /* - O Tailwind não define cursor pointer para <button> por padrão (só <a href> ganha isso do navegador).
    *   Sem esta regra, todo botão do app mostra a seta padrão em vez da mãozinha ao passar o mouse. - */
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   summary,
@@ -106,5 +107,78 @@
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+@media (max-width: 767px) {
+  #root > div > header:first-child {
+    display: none;
+  }
+
+  main:has(#catalogo) > div {
+    padding-top: 2.5rem;
+  }
+
+  main:has(#catalogo) section#catalogo {
+    margin-top: 1rem;
+    gap: 1rem;
+  }
+
+  main:has(#catalogo) section#catalogo > div > div:first-child {
+    gap: 0;
+  }
+
+  main:has(#catalogo) section#catalogo > div > div:first-child > div.flex.items-center.gap-2 {
+    display: none;
+  }
+
+  main:has(#catalogo) section#catalogo .mt-7.grid {
+    margin-top: 1rem;
+  }
+
+  main:has(#catalogo) .group > div {
+    padding: 0.5rem;
+  }
+
+  main:has([aria-label="Ampliar imagem"]) > div > div {
+    padding-bottom: 0;
+  }
+
+  main:has([aria-label="Ampliar imagem"]) .mt-4.grid {
+    margin-top: 1rem;
+    gap: 0;
+  }
+
+  main:has([aria-label="Ampliar imagem"]) .mt-4.grid > section {
+    margin-top: 0;
+  }
+
+  main:has([aria-label="Código promocional"]) > div {
+    padding-bottom: 6rem;
+  }
+
+  main:has([aria-label="Código promocional"]) .mt-6.grid {
+    margin-top: 1rem;
+    gap: 0.75rem;
+  }
+
+  main:has([aria-label="Código promocional"]) .grid.gap-2.md\:hidden {
+    gap: 0.75rem;
+  }
+
+  main:has([aria-label="Código promocional"]) .grid.gap-8 {
+    gap: 1rem;
+  }
+
+  main:has([aria-label="Rede de pagamento"]) form {
+    padding-top: 0;
+  }
+
+  main:has([aria-label="Rede de pagamento"]) form > .md\:hidden {
+    padding-bottom: 1rem;
+  }
+
+  main:has(#login-email) .relative.w-full.max-w-125 {
+    padding-top: 8.25rem;
   }
 }
